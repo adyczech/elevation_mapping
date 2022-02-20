@@ -10,13 +10,20 @@
 #include "elevation_mapping/ElevationMapping.hpp"
 
 int main(int argc, char** argv) {
-  rclcpp::init(argc, argv, "elevation_mapping");
-  rclcpp::NodeHandle nodeHandle("~");
-  elevation_mapping::ElevationMapping elevationMap(nodeHandle);
+  rclcpp::init(argc, argv);
 
-  // Spin
-  rclcpp::AsyncSpinner spinner(nodeHandle.param("num_callback_threads", 1));  // Use n threads
-  spinner.start();
-  rclcpp::waitForShutdown();
-  return 0;
+  rclcpp::executors::MultiThreadedExecutor executor;
+
+  rclcpp::NodeOptions options;
+  options.use_intra_process_comms(true);
+
+  auto elevationMap = std::make_shared<elevation_mapping::ElevationMapping>(options);
+
+  executor.add_node(elevationMap);
+
+  executor.spin();
+
+  rclcpp::shutdown();
+
+  return EXIT_SUCCESS;
 }
