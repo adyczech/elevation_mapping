@@ -51,6 +51,9 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
       enableContinuousCleanup_(false),
       visibilityCleanupDuration_(0.0),
       scanningDuration_(1.0) {
+  // Use steady time because we don't want duration measurements to be affect by clock jumps:
+  steadyClock_ = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+
   rawMap_.setBasicLayers({"elevation", "variance"});
   fusedMap_.setBasicLayers({"elevation", "upper_bound", "lower_bound"});
   clear();
@@ -70,7 +73,7 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
     "visibility_cleanup_map",
     default_qos(1));
 
-  initialTime_ = rclcpp::Time::now();
+  initialTime_ = node_->get_clock()->now();
 }
 
 ElevationMap::~ElevationMap() = default;
@@ -91,16 +94,16 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
   }
 
   // Initialization for time calculation.
-  const rclcpp::WallTime methodStartTime(rclcpp::WallTime::now());
-  const rclcpp::Time currentTime(rclcpp::Time::now());
-  const float currentTimeSecondsPattern{intAsFloat(static_cast<uint32_t>(static_cast<uint64_t>(currentTime.toSec())))};
+  const rclcpp::Time methodStartTime(steadyClock_->now());
+  const rclcpp::Time currentTime(node_->get_clock()->now());  // TODO(SivertHavso): confirm we want RCL_ROS_TIME here
+  const float currentTimeSecondsPattern{intAsFloat(static_cast<uint32_t>(static_cast<uint64_t>(currentTime.seconds())))};
   std::scoped_lock scopedLockForRawData(rawMapMutex_);
 
   // Update initial time if it is not initialized.
-  if (initialTime_.toSec() == 0) {
+  if (initialTime_.nanoseconds() == 0) {
     initialTime_ = timestamp;
   }
-  const float scanTimeSinceInitialization = (timestamp - initialTime_).toSec();
+  const float scanTimeSinceInitialization = (timestamp - initialTime_).seconds();
 
   // Store references for efficient interation.
   auto& elevationLayer = rawMap_["elevation"];
@@ -200,10 +203,10 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
   }
 
   clean();
-  rawMap_.setTimestamp(timestamp.toNSec());  // Point cloud stores time in microseconds.
+  rawMap_.setTimestamp(timestamp.nanoseconds());  // Point cloud stores time in microseconds.
 
-  const rclcpp::WallDuration duration = rclcpp::WallTime::now() - methodStartTime;
-  RCLCPP_DEBUG(node_->get_logger(), "Raw map has been updated with a new point cloud in %f s.", duration.toSec());
+  const rclcpp::Duration duration = steadyClock_->now() - methodStartTime;
+  RCLCPP_DEBUG(node_->get_logger(), "Raw map has been updated with a new point cloud in %f s.", duration.seconds());
   return true;
 }
 
@@ -227,7 +230,7 @@ bool ElevationMap::update(const grid_map::Matrix& varianceUpdate, const grid_map
   rawMap_.get("horizontal_variance_y") += horizontalVarianceUpdateY;
   rawMap_.get("horizontal_variance_xy") += horizontalVarianceUpdateXY;
   clean();
-  rawMap_.setTimestamp(time.toNSec());
+  rawMap_.setTimestamp(time.nanoseconds());
 
   return true;
 }
@@ -268,7 +271,7 @@ bool ElevationMap::fuse(const grid_map::Index& topLeftIndex, const grid_map::Ind
   }
 
   // Initializations.
-  const rclcpp::WallTime methodStartTime(rclcpp::WallTime::now());
+  const rclcpp::Time methodStartTime(steadyClock_->now());
 
   // Copy raw elevation map data for safe multi-threading.
     grid_map::GridMap rawMapCopy;
@@ -418,8 +421,8 @@ bool ElevationMap::fuse(const grid_map::Index& topLeftIndex, const grid_map::Ind
 
   fusedMap_.setTimestamp(rawMapCopy.getTimestamp());
 
-  const rclcpp::WallDuration duration(rclcpp::WallTime::now() - methodStartTime);
-  RCLCPP_DEBUG(node_->get_logger(), "Elevation map has been fused in %f s.", duration.toSec());
+  const rclcpp::Duration duration(steadyClock_->now() - methodStartTime);
+  RCLCPP_DEBUG(node_->get_logger(), "Elevation map has been fused in %f s.", duration.seconds());
 
   return true;
 }
@@ -442,8 +445,8 @@ bool ElevationMap::clear() {
 
 void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   // Get current time to compute calculation time.
-  const rclcpp::WallTime methodStartTime(rclcpp::WallTime::now());
-  const double timeSinceInitialization = (updatedTime - initialTime_).toSec();
+  const rclcpp::Time methodStartTime(steadyClock_->now());
+  const double timeSinceInitialization = (updatedTime - initialTime_).seconds();
 
   // Copy raw elevation map data for safe multi-threading.
   std::scoped_lock scopedLockForVisibilityCleanupData(visibilityCleanupMapMutex_);
@@ -534,10 +537,10 @@ void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   // Publish visibility cleanup map for debugging.
   publishVisibilityCleanupMap();
 
-  rclcpp::WallDuration duration(rclcpp::WallTime::now() - methodStartTime);
-  RCLCPP_DEBUG(node_->get_logger(), "Visibility cleanup has been performed in %f s (%d points).", duration.toSec(), (int)cellPositionsToRemove.size());
-  if (duration.toSec() > visibilityCleanupDuration_) {
-    RCLCPP_WARN(node_->get_logger(), "Visibility cleanup duration is too high (current rate is %f).", 1.0 / duration.toSec());
+  rclcpp::Duration duration(steadyClock_->now() - methodStartTime);
+  RCLCPP_DEBUG(node_->get_logger(), "Visibility cleanup has been performed in %f s (%d points).", duration.seconds(), (int)cellPositionsToRemove.size());
+  if (duration.seconds() > visibilityCleanupDuration_) {
+    RCLCPP_WARN(node_->get_logger(), "Visibility cleanup duration is too high (current rate is %f).", 1.0 / duration.seconds());
   }
 }
 
@@ -630,12 +633,12 @@ void ElevationMap::setFusedGridMap(const grid_map::GridMap& map) {
 }
 
 rclcpp::Time ElevationMap::getTimeOfLastUpdate() {
-  return rclcpp::Time().fromNSec(rawMap_.getTimestamp());
+  return rclcpp::Time(rawMap_.getTimestamp(), RCL_ROS_TIME);  // TODO(SivertHavso): Confirm ROS time
 }
 
 rclcpp::Time ElevationMap::getTimeOfLastFusion() {
   std::scoped_lock scopedLock(fusedMapMutex_);
-  return rclcpp::Time().fromNSec(fusedMap_.getTimestamp());
+  return rclcpp::Time(fusedMap_.getTimestamp(), RCL_ROS_TIME);  // TODO(SivertHavso): Confirm ROS time
 }
 
 const kindr::HomTransformQuatD& ElevationMap::getPose() {
@@ -681,8 +684,8 @@ void ElevationMap::setFrameId(const std::string& frameId) {
 }
 
 void ElevationMap::setTimestamp(rclcpp::Time timestamp) {
-  rawMap_.setTimestamp(timestamp.toNSec());
-  fusedMap_.setTimestamp(timestamp.toNSec());
+  rawMap_.setTimestamp(timestamp.nanoseconds());
+  fusedMap_.setTimestamp(timestamp.nanoseconds());
 }
 
 const std::string& ElevationMap::getFrameId() {

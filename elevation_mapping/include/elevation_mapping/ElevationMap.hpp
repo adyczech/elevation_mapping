@@ -316,6 +316,9 @@ class ElevationMap {
   //! Initial ros time
   rclcpp::Time initialTime_;
 
+  //! Steady system clock used to measure method run times (RCL_STEADY_TIME)
+  rclcpp::Clock::SharedPtr steadyClock_;
+
   //! Parameters. Are set through the ElevationMapping class.
   double minVariance_;
   double maxVariance_;

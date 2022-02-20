@@ -9,9 +9,13 @@
 #include "elevation_mapping/ElevationMapping.hpp"
 #include "elevation_mapping/QoS.hpp"
 
+#include <chrono>
+
 #include <rclcpp/rclcpp.hpp>
 
 #include <gtest/gtest.h>
+
+using namespace std::literals::chrono_literals;
 
 static void assertSuccessAndNumberOfSources(const std::string& inputConfiguration, bool successExpected,
                                             uint32_t numberOfExpectedInputSources) {
@@ -104,15 +108,15 @@ TEST(InputSources, ListeningToTopicsAfterRegistration) {  // NOLINT
 
   // Wait a bit.
   rclcpp::spinOnce();
-  rclcpp::Duration(1.0).sleep();
+  rclcpp::sleep_for(1s);
   rclcpp::spinOnce();
 
   // Publish to the topics we expect map to subscribe.
   rclcpp::Node node("");
   auto firstLidarPublisher = node.create_publisher<sensor_msgs::msg::PointCloud2>(
-    "/lidar_1/depth/points", default_qos());
+    "/lidar_1/depth/points", elevation_mapping::default_qos());
   auto secondLidarPublisher = node.create_publisher<sensor_msgs::msg::PointCloud2>(
-    "/lidar_2/depth/points", default_qos());
+    "/lidar_2/depth/points", elevation_mapping::default_qos());
     
   // Check if we have exactly one subscriber per topic.
   ASSERT_EQ(firstLidarPublisher->get_subscription_count(), 1);

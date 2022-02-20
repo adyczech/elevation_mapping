@@ -300,10 +300,10 @@ class ElevationMapping : public rclcpp::Node {
   //! Time of the last point cloud update.
   rclcpp::Time lastPointCloudUpdateTime_;
 
-  //! Timer for the robot motion update.
+  //! Timer for the robot motion update. Uses RCL_ROS_TIME
   rclcpp::TimerBase::SharedPtr mapUpdateTimer_;
 
-  //! Timer for the initialization of the node
+  //! Timer for the initialization of the node. Uses RCL_STEADY_TIME
   rclcpp::TimerBase::SharedPtr initTimer_;
 
   //! Maximum time that the map will not be updated.
@@ -313,7 +313,7 @@ class ElevationMapping : public rclcpp::Node {
   //! This is useful when having multiple sensors adding data to the map.
   rclcpp::Duration timeTolerance_;
 
-  //! Timer for publishing the fused map.
+  //! Timer for publishing the fused map. Uses RCL_STEADY_TIME
   rclcpp::TimerBase::SharedPtr fusedMapPublishTimer_;
 
   //! Duration for the publishing the fusing map.
@@ -322,7 +322,7 @@ class ElevationMapping : public rclcpp::Node {
   //! If map is fused after every change for debugging/analysis purposes.
   bool isContinuouslyFusing_;
 
-  //! Timer for the raytracing cleanup.
+  //! Timer for the raytracing cleanup. Uses RCL_STEADY_TIME
   rclcpp::TimerBase::SharedPtr visibilityCleanupTimer_;
 
   //! Duration for the raytracing cleanup timer.
@@ -330,9 +330,6 @@ class ElevationMapping : public rclcpp::Node {
 
   //! Callback group for raytracing cleanup.
   rclcpp::CallbackGroup::SharedPtr visibilityCleanupCallbackGroup_;
-
-  //! System clock
-  rclcpp::Clock::SharedPtr systemClock_;
 
   //! Becomes true when corresponding poses and point clouds can be found
   bool receivedFirstMatchingPointcloudAndPose_;
