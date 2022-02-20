@@ -105,27 +105,47 @@ void ElevationMapping::setupSubscribers() {  // Handle input_sources configurati
 
 void ElevationMapping::setupServices() {
   // Multi-threading for fusion.
-  rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForTriggerFusion = rclcpp::AdvertiseServiceOptions::create<std_srvs::srv::Empty>(
-      "trigger_fusion", boost::bind(&ElevationMapping::fuseEntireMapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
-      fusionCallbackGroup_);
-  fusionTriggerService_ = this->advertiseService(advertiseServiceOptionsForTriggerFusion);
+  fusionTriggerService_ = create_service<std_srvs::srv::Empty>(
+    "trigger_fusion",
+    std::bind(&ElevationMapping::fuseEntireMapServiceCallback, this, std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    fusionCallbackGroup_);
 
-  rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForGetFusedSubmap = rclcpp::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
-      "get_submap", boost::bind(&ElevationMapping::getFusedSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
-      fusionCallbackGroup_);
-  fusedSubmapService_ = this->advertiseService(advertiseServiceOptionsForGetFusedSubmap);
+  fusedSubmapService_ = create_service<grid_map_msgs::srv::GetGridMap>(
+    "get_submap",
+    std::bind(&ElevationMapping::getFusedSubmapServiceCallback, this, std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    fusionCallbackGroup_);
 
-  rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForGetRawSubmap = rclcpp::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
-      "get_raw_submap", boost::bind(&ElevationMapping::getRawSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
-      fusionCallbackGroup_);
-  rawSubmapService_ = this->advertiseService(advertiseServiceOptionsForGetRawSubmap);
+  rawSubmapService_ = create_service<grid_map_msgs::srv::GetGridMap>(
+    "get_raw_submap",
+    std::bind(&ElevationMapping::getRawSubmapServiceCallback, this, std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    fusionCallbackGroup_);
 
-  clearMapService_ = this->advertiseService("clear_map", &ElevationMapping::clearMapServiceCallback, this);
-  enableUpdatesService_ = this->advertiseService("enable_updates", &ElevationMapping::enableUpdatesServiceCallback, this);
-  disableUpdatesService_ = this->advertiseService("disable_updates", &ElevationMapping::disableUpdatesServiceCallback, this);
-  maskedReplaceService_ = this->advertiseService("masked_replace", &ElevationMapping::maskedReplaceServiceCallback, this);
-  saveMapService_ = this->advertiseService("save_map", &ElevationMapping::saveMapServiceCallback, this);
-  loadMapService_ = this->advertiseService("load_map", &ElevationMapping::loadMapServiceCallback, this);
+  clearMapService_ = create_service<std_srvs::srv::Empty>(
+    "clear_map",
+    std::bind(&ElevationMapping::clearMapServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+  enableUpdatesService_ = create_service<std_srvs::srv::Empty>(
+    "enable_updates",
+    std::bind(&ElevationMapping::enableUpdatesServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+  disableUpdatesService_ = create_service<std_srvs::srv::Empty>(
+    "disable_updates",
+    std::bind(&ElevationMapping::disableUpdatesServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+  maskedReplaceService_ = create_service<grid_map_msgs::srv::SetGridMap>(
+    "masked_replace",
+    std::bind(&ElevationMapping::maskedReplaceServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+  saveMapService_ = create_service<grid_map_msgs::srv::ProcessFile>(
+    "save_map",
+    std::bind(&ElevationMapping::saveMapServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+  loadMapService_ = create_service<grid_map_msgs::srv::ProcessFile>(
+    "load_map",
+    std::bind(&ElevationMapping::loadMapServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void ElevationMapping::setupTimers() {
@@ -454,7 +474,7 @@ void ElevationMapping::visibilityCleanupCallback() {
   map_->visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_));
 }
 
-bool ElevationMapping::fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request&, std_srvs::srv::Empty::Response&) {
+bool ElevationMapping::fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request::SharedPtr, std_srvs::srv::Empty::Response::SharedPtr) {
   std::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
   map_->publishFusedElevationMap();
@@ -529,10 +549,10 @@ bool ElevationMapping::updateMapLocation() {
   return true;
 }
 
-bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request,
-                                                     grid_map_msgs::srv::GetGridMap::Response& response) {
-  grid_map::Position requestedSubmapPosition(request.position_x, request.position_y);
-  grid_map::Length requestedSubmapLength(request.length_x, request.length_y);
+bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request::SharedPtr request,
+                                                     grid_map_msgs::srv::GetGridMap::Response::SharedPtr response) {
+  grid_map::Position requestedSubmapPosition(request->position_x, request->position_y);
+  grid_map::Length requestedSubmapLength(request->length_x, request->length_y);
   RCLCPP_DEBUG(this->get_logger(), "Elevation submap request: Position x=%f, y=%f, Length x=%f, y=%f.", requestedSubmapPosition.x(), requestedSubmapPosition.y(),
             requestedSubmapLength(0), requestedSubmapLength(1));
 
@@ -546,24 +566,24 @@ bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGrid
     // scopedLock.unlock();
   }
 
-  if (request.layers.empty()) {
-    grid_map::GridMapRosConverter::toMessage(subMap, response.map);
+  if (request->layers.empty()) {
+    grid_map::GridMapRosConverter::toMessage(subMap, response->map);
   } else {
     std::vector<std::string> layers;
-    for (const std::string& layer : request.layers) {
+    for (const std::string& layer : request->layers) {
       layers.push_back(layer);
     }
-    grid_map::GridMapRosConverter::toMessage(subMap, layers, response.map);
+    grid_map::GridMapRosConverter::toMessage(subMap, layers, response->map);
   }
 
   RCLCPP_DEBUG(this->get_logger(), "Elevation submap responded with timestamp %f.", map_->getTimeOfLastFusion().toSec());
   return isSuccess;
 }
 
-bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request,
-                                                   grid_map_msgs::srv::GetGridMap::Response& response) {
-  grid_map::Position requestedSubmapPosition(request.position_x, request.position_y);
-  grid_map::Length requestedSubmapLength(request.length_x, request.length_y);
+bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request::SharedPtr request,
+                                                   grid_map_msgs::srv::GetGridMap::Response::SharedPtr response) {
+  grid_map::Position requestedSubmapPosition(request->position_x, request->position_y);
+  grid_map::Length requestedSubmapLength(request->length_x, request->length_y);
   RCLCPP_DEBUG(this->get_logger(), "Elevation raw submap request: Position x=%f, y=%f, Length x=%f, y=%f.", requestedSubmapPosition.x(),
             requestedSubmapPosition.y(), requestedSubmapLength(0), requestedSubmapLength(1));
   bool isSuccess;
@@ -575,26 +595,25 @@ bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMa
     // scopedLock.unlock();
   }
 
-
-  if (request.layers.empty()) {
-    grid_map::GridMapRosConverter::toMessage(subMap, response.map);
+  if (request->layers.empty()) {
+    grid_map::GridMapRosConverter::toMessage(subMap, response->map);
   } else {
     std::vector<std::string> layers;
-    for (const std::string& layer : request.layers) {
+    for (const std::string& layer : request->layers) {
       layers.push_back(layer);
     }
-    grid_map::GridMapRosConverter::toMessage(subMap, layers, response.map);
+    grid_map::GridMapRosConverter::toMessage(subMap, layers, response->map);
   }
   return isSuccess;
 }
 
-bool ElevationMapping::disableUpdatesServiceCallback(std_srvs::srv::Empty::Request& /*request*/, std_srvs::srv::Empty::Response& /*response*/) {
+bool ElevationMapping::disableUpdatesServiceCallback(std_srvs::srv::Empty::Request::SharedPtr /*request*/, std_srvs::srv::Empty::Response::SharedPtr /*response*/) {
   RCLCPP_INFO(this->get_logger(), "Disabling updates.");
   updatesEnabled_ = false;
   return true;
 }
 
-bool ElevationMapping::enableUpdatesServiceCallback(std_srvs::srv::Empty::Request& /*request*/, std_srvs::srv::Empty::Response& /*response*/) {
+bool ElevationMapping::enableUpdatesServiceCallback(std_srvs::srv::Empty::Request::SharedPtr /*request*/, std_srvs::srv::Empty::Response::SharedPtr /*response*/) {
   RCLCPP_INFO(this->get_logger(), "Enabling updates.");
   updatesEnabled_ = true;
   return true;
@@ -634,7 +653,7 @@ bool ElevationMapping::initializeElevationMap() {
   return true;
 }
 
-bool ElevationMapping::clearMapServiceCallback(std_srvs::srv::Empty::Request& /*request*/, std_srvs::srv::Empty::Response& /*response*/) {
+bool ElevationMapping::clearMapServiceCallback(std_srvs::srv::Empty::Request::SharedPtr /*request*/, std_srvs::srv::Empty::Response::SharedPtr /*response*/) {
   RCLCPP_INFO(this->get_logger(), "Clearing map...");
   bool success = map_->clear();
   success &= initializeElevationMap();
@@ -643,11 +662,11 @@ bool ElevationMapping::clearMapServiceCallback(std_srvs::srv::Empty::Request& /*
   return success;
 }
 
-bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request& request,
-                                                    grid_map_msgs::srv::SetGridMap::Response& /*response*/) {
+bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request::SharedPtr request,
+                                                    grid_map_msgs::srv::SetGridMap::Response::SharedPtr /*response*/) {
   RCLCPP_INFO(this->get_logger(), "Masked replacing of map.");
   grid_map::GridMap sourceMap;
-  grid_map::GridMapRosConverter::fromMessage(request.map, sourceMap);
+  grid_map::GridMapRosConverter::fromMessage(request->map, sourceMap);
 
   // Use the supplied mask or do not use a mask
   grid_map::Matrix mask;
@@ -695,45 +714,45 @@ bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridM
   return true;
 }
 
-bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request,
-                                              grid_map_msgs::srv::ProcessFile::Response& response) {
+bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request,
+                                              grid_map_msgs::srv::ProcessFile::Response::SharedPtr response) {
   RCLCPP_INFO(this->get_logger(), "Saving map to file.");
   std::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
   std::string topic = this->getNamespace() + "/elevation_map";
-  if (!request.topic_name.empty()) {
-    topic = this->getNamespace() + "/" + request.topic_name;
+  if (!request->topic_name.empty()) {
+    topic = this->getNamespace() + "/" + request->topic_name;
   }
-  response.success = static_cast<unsigned char>(grid_map::GridMapRosConverter::saveToBag(map_->getFusedGridMap(), request.file_path, topic));
-  response.success = static_cast<unsigned char>(
-      (grid_map::GridMapRosConverter::saveToBag(map_->getRawGridMap(), request.file_path + "_raw", topic + "_raw")) &&
-      static_cast<bool>(response.success));
-  return static_cast<bool>(response.success);
+  response->success = static_cast<unsigned char>(grid_map::GridMapRosConverter::saveToBag(map_->getFusedGridMap(), request->file_path, topic));
+  response->success = static_cast<unsigned char>(
+      (grid_map::GridMapRosConverter::saveToBag(map_->getRawGridMap(), request->file_path + "_raw", topic + "_raw")) &&
+      static_cast<bool>(response->success));
+  return static_cast<bool>(response->success);
 }
 
-bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request,
-                                              grid_map_msgs::srv::ProcessFile::Response& response) {
+bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request,
+                                              grid_map_msgs::srv::ProcessFile::Response::SharedPtr response) {
   RCLCPP_WARN(this->get_logger(), "Loading from bag file.");
   std::scoped_lock scopedLockFused(map_->getFusedDataMutex());
   std::scoped_lock scopedLockRaw(map_->getRawDataMutex());
 
   std::string topic = this->getNamespace();
-  if (!request.topic_name.empty()) {
-    topic += "/" + request.topic_name;
+  if (!request->topic_name.empty()) {
+    topic += "/" + request->topic_name;
   } else {
     topic += "/elevation_map";
   }
 
-  response.success =
-      static_cast<unsigned char>(grid_map::GridMapRosConverter::loadFromBag(request.file_path, topic, map_->getFusedGridMap()));
-  response.success = static_cast<unsigned char>(
-      grid_map::GridMapRosConverter::loadFromBag(request.file_path + "_raw", topic + "_raw", map_->getRawGridMap()) &&
-      static_cast<bool>(response.success));
+  response->success =
+      static_cast<unsigned char>(grid_map::GridMapRosConverter::loadFromBag(request->file_path, topic, map_->getFusedGridMap()));
+  response->success = static_cast<unsigned char>(
+      grid_map::GridMapRosConverter::loadFromBag(request->file_path + "_raw", topic + "_raw", map_->getRawGridMap()) &&
+      static_cast<bool>(response->success));
 
   // Update timestamp for visualization in ROS
   map_->setTimestamp(rclcpp::Time::now());
   map_->postprocessAndPublishRawElevationMap();
-  return static_cast<bool>(response.success);
+  return static_cast<bool>(response->success);
 }
 
 void ElevationMapping::resetMapUpdateTimer() {

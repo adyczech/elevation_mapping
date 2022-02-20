@@ -92,7 +92,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
+  bool fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request::SharedPtr request, std_srvs::srv::Empty::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to return a submap of the fused elevation map.
@@ -101,7 +101,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response containing the requested fused submap.
    * @return true if successful.
    */
-  bool getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request, grid_map_msgs::srv::GetGridMap::Response& response);
+  bool getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request::SharedPtr request, grid_map_msgs::srv::GetGridMap::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to return a submap of the raw elevation map.
@@ -110,7 +110,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response containing the requested raw submap.
    * @return true if successful.
    */
-  bool getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request, grid_map_msgs::srv::GetGridMap::Response& response);
+  bool getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request::SharedPtr request, grid_map_msgs::srv::GetGridMap::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to enable updates of the elevation map.
@@ -119,7 +119,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool enableUpdatesServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
+  bool enableUpdatesServiceCallback(std_srvs::srv::Empty::Request::SharedPtr request, std_srvs::srv::Empty::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to disable updates of the elevation map.
@@ -128,7 +128,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool disableUpdatesServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
+  bool disableUpdatesServiceCallback(std_srvs::srv::Empty::Request::SharedPtr request, std_srvs::srv::Empty::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to clear all data of the elevation map.
@@ -137,7 +137,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool clearMapServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
+  bool clearMapServiceCallback(std_srvs::srv::Empty::Request::SharedPtr request, std_srvs::srv::Empty::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to allow for setting the individual layers of the elevation map through a service call.
@@ -150,7 +150,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response   The ROS service response.
    * @return true if successful.
    */
-  bool maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request& request, grid_map_msgs::srv::SetGridMap::Response& response);
+  bool maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request::SharedPtr request, grid_map_msgs::srv::SetGridMap::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to save the grid map with all layers to a ROS bag file.
@@ -159,7 +159,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response  The ROS service response.
    * @return true if successful.
    */
-  bool saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request, grid_map_msgs::srv::ProcessFile::Response& response);
+  bool saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request, grid_map_msgs::srv::ProcessFile::Response::SharedPtr response);
 
   /*!
    * ROS service callback function to load the grid map with all layers from a ROS bag file.
@@ -168,7 +168,7 @@ class ElevationMapping : public rclcpp::Node {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request, grid_map_msgs::srv::ProcessFile::Response& response);
+  bool loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request, grid_map_msgs::srv::ProcessFile::Response::SharedPtr response);
 
  private:
   /*!
@@ -252,15 +252,15 @@ class ElevationMapping : public rclcpp::Node {
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
 
   //! ROS service servers.
-  rclcpp::ServiceServer fusionTriggerService_;
-  rclcpp::ServiceServer fusedSubmapService_;
-  rclcpp::ServiceServer rawSubmapService_;
-  rclcpp::ServiceServer enableUpdatesService_;
-  rclcpp::ServiceServer disableUpdatesService_;
-  rclcpp::ServiceServer clearMapService_;
-  rclcpp::ServiceServer maskedReplaceService_;
-  rclcpp::ServiceServer saveMapService_;
-  rclcpp::ServiceServer loadMapService_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr fusionTriggerService_;
+  rclcpp::Service<grid_map_msgs::srv::GetGridMap>::SharedPtr fusedSubmapService_;
+  rclcpp::Service<grid_map_msgs::srv::GetGridMap>::SharedPtr rawSubmapService_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr clearMapService_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr enableUpdatesService_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr disableUpdatesService_;
+  rclcpp::Service<grid_map_msgs::srv::SetGridMap>::SharedPtr maskedReplaceService_;
+  rclcpp::Service<grid_map_msgs::srv::ProcessFile>::SharedPtr saveMapService_;
+  rclcpp::Service<grid_map_msgs::srv::ProcessFile>::SharedPtr loadMapService_;
 
   //! Callback group for fusion service.
   rclcpp::CallbackGroup::SharedPtr fusionCallbackGroup_;
