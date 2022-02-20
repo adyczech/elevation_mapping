@@ -22,7 +22,7 @@ class PerfectSensorProcessor : public SensorProcessorBase {
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  PerfectSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
+  PerfectSensorProcessor(rclcpp::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
 
   /*!
    * Destructor.

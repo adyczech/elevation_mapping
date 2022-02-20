@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <filters/filter_chain.hpp>
 #include <grid_map_core/GridMap.hpp>
 
@@ -35,7 +35,7 @@ class PostprocessingPipelineFunctor {
    * @brief Explicit Constructor.
    * @param nodeHandle The node handle to read parameters from and to publish output data.
    */
-  explicit PostprocessingPipelineFunctor(ros::NodeHandle& nodeHandle);
+  explicit PostprocessingPipelineFunctor(rclcpp::NodeHandle& nodeHandle);
 
   /**
    * @brief Destructor.
@@ -70,13 +70,13 @@ class PostprocessingPipelineFunctor {
   void readParameters();
 
   //! ROS nodehandle.
-  ros::NodeHandle& nodeHandle_;
+  rclcpp::NodeHandle& nodeHandle_;
 
   //! Name of the output grid map topic.
   std::string outputTopic_;
 
   //! Grid map publisher.
-  ros::Publisher publisher_;
+  rclcpp::Publisher publisher_;
 
   //! Filter chain.
   filters::FilterChain<grid_map::GridMap> filterChain_;

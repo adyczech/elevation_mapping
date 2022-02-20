@@ -22,7 +22,7 @@ class StructuredLightSensorProcessor : public SensorProcessorBase {
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  StructuredLightSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
+  StructuredLightSensorProcessor(rclcpp::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
 
   /*!
    * Destructor.

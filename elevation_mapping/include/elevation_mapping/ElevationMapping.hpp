@@ -17,7 +17,7 @@
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_srvs/srv/empty.hpp>
 #include <tf2_ros/buffer.h>
@@ -53,7 +53,7 @@ class ElevationMapping {
    *
    * @param nodeHandle the ROS node handle.
    */
-  explicit ElevationMapping(ros::NodeHandle& nodeHandle);
+  explicit ElevationMapping(rclcpp::NodeHandle& nodeHandle);
 
   /*!
    * Destructor.
@@ -77,7 +77,7 @@ class ElevationMapping {
    *
    * @param timerEvent    The timer event.
    */
-  void mapUpdateTimerCallback(const ros::TimerEvent& timerEvent);
+  void mapUpdateTimerCallback(const rclcpp::TimerEvent& timerEvent);
 
   /*!
    * Callback function for the fused map publish timer. Publishes the fused map
@@ -85,14 +85,14 @@ class ElevationMapping {
    *
    * @param timerEvent    The timer event.
    */
-  void publishFusedMapCallback(const ros::TimerEvent& timerEvent);
+  void publishFusedMapCallback(const rclcpp::TimerEvent& timerEvent);
 
   /*!
    * Callback function for cleaning map based on visibility ray tracing.
    *
    * @param timerEvent  The timer event.
    */
-  void visibilityCleanupCallback(const ros::TimerEvent& timerEvent);
+  void visibilityCleanupCallback(const rclcpp::TimerEvent& timerEvent);
 
   /*!
    * ROS service callback function to trigger the fusion of the entire
@@ -226,7 +226,7 @@ class ElevationMapping {
    * @param time    Time to which the map is updated to.
    * @return true if successful.
    */
-  bool updatePrediction(const ros::Time& time);
+  bool updatePrediction(const rclcpp::Time& time);
 
   /*!
    * Updates the location of the map to follow the tracking point. Takes care
@@ -257,31 +257,31 @@ class ElevationMapping {
   bool isFusingEnabled();
 
   //! ROS nodehandle.
-  ros::NodeHandle nodeHandle_;
+  rclcpp::NodeHandle nodeHandle_;
 
  protected:
   //! Input sources.
   InputSourceManager inputSources_;
   //! ROS subscribers.
-  ros::Subscriber pointCloudSubscriber_;  //!< Deprecated, use input_source instead.
+  rclcpp::Subscriber pointCloudSubscriber_;  //!< Deprecated, use input_source instead.
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
 
   //! ROS service servers.
-  ros::ServiceServer fusionTriggerService_;
-  ros::ServiceServer fusedSubmapService_;
-  ros::ServiceServer rawSubmapService_;
-  ros::ServiceServer enableUpdatesService_;
-  ros::ServiceServer disableUpdatesService_;
-  ros::ServiceServer clearMapService_;
-  ros::ServiceServer maskedReplaceService_;
-  ros::ServiceServer saveMapService_;
-  ros::ServiceServer loadMapService_;
+  rclcpp::ServiceServer fusionTriggerService_;
+  rclcpp::ServiceServer fusedSubmapService_;
+  rclcpp::ServiceServer rawSubmapService_;
+  rclcpp::ServiceServer enableUpdatesService_;
+  rclcpp::ServiceServer disableUpdatesService_;
+  rclcpp::ServiceServer clearMapService_;
+  rclcpp::ServiceServer maskedReplaceService_;
+  rclcpp::ServiceServer saveMapService_;
+  rclcpp::ServiceServer loadMapService_;
 
   //! Callback thread for the fusion services.
   boost::thread fusionServiceThread_;
 
   //! Callback queue for fusion service thread.
-  ros::CallbackQueue fusionServiceQueue_;
+  rclcpp::CallbackQueue fusionServiceQueue_;
 
   //! Cache for the robot pose messages.
   message_filters::Cache<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseCache_;
@@ -320,35 +320,35 @@ class ElevationMapping {
   bool updatesEnabled_;
 
   //! Time of the last point cloud update.
-  ros::Time lastPointCloudUpdateTime_;
+  rclcpp::Time lastPointCloudUpdateTime_;
 
   //! Timer for the robot motion update.
-  ros::Timer mapUpdateTimer_;
+  rclcpp::Timer mapUpdateTimer_;
 
   //! Maximum time that the map will not be updated.
-  ros::Duration maxNoUpdateDuration_;
+  rclcpp::Duration maxNoUpdateDuration_;
 
   //! Time tolerance for updating the map with data before the last update.
   //! This is useful when having multiple sensors adding data to the map.
-  ros::Duration timeTolerance_;
+  rclcpp::Duration timeTolerance_;
 
   //! Timer for publishing the fused map.
-  ros::Timer fusedMapPublishTimer_;
+  rclcpp::Timer fusedMapPublishTimer_;
 
   //! Duration for the publishing the fusing map.
-  ros::Duration fusedMapPublishTimerDuration_;
+  rclcpp::Duration fusedMapPublishTimerDuration_;
 
   //! If map is fused after every change for debugging/analysis purposes.
   bool isContinuouslyFusing_;
 
   //! Timer for the raytracing cleanup.
-  ros::Timer visibilityCleanupTimer_;
+  rclcpp::Timer visibilityCleanupTimer_;
 
   //! Duration for the raytracing cleanup timer.
-  ros::Duration visibilityCleanupTimerDuration_;
+  rclcpp::Duration visibilityCleanupTimerDuration_;
 
   //! Callback queue for raytracing cleanup thread.
-  ros::CallbackQueue visibilityCleanupQueue_;
+  rclcpp::CallbackQueue visibilityCleanupQueue_;
 
   //! Callback thread for raytracing cleanup.
   boost::thread visibilityCleanupThread_;

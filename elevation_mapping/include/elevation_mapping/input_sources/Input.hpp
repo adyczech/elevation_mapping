@@ -9,7 +9,7 @@
 #pragma once
 
 #include <XmlRpc.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <string>
 
 #include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
@@ -31,7 +31,7 @@ class Input {
    * @param nh Reference to the nodeHandle of the manager. Used to subscribe
    * to inputs.
    */
-  explicit Input(ros::NodeHandle nh);
+  explicit Input(rclcpp::NodeHandle nh);
 
   /**
    * @brief Configure the input source.
@@ -76,8 +76,8 @@ class Input {
                                 const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   // ROS connection.
-  ros::Subscriber subscriber_;
-  ros::NodeHandle nodeHandle_;
+  rclcpp::Subscriber subscriber_;
+  rclcpp::NodeHandle nodeHandle_;
 
   //! Sensor processor
   SensorProcessorBase::Ptr sensorProcessor_;
@@ -94,7 +94,7 @@ template <typename MsgT>
 void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
   subscriber_ = nodeHandle_.subscribe<MsgT>(
       topic_, queueSize_, std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
-  ROS_INFO("Subscribing to %s: %s, queue_size: %i.", type_.c_str(), topic_.c_str(), queueSize_);
+  RCLCPP_INFO(node_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", type_.c_str(), topic_.c_str(), queueSize_);
 }
 
 }  // namespace elevation_mapping

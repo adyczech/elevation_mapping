@@ -22,7 +22,7 @@ class LaserSensorProcessor : public SensorProcessorBase {
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  LaserSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
+  LaserSensorProcessor(rclcpp::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
 
   /*!
    * Destructor.

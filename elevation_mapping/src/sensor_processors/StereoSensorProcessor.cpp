@@ -18,7 +18,7 @@
 
 namespace elevation_mapping {
 
-StereoSensorProcessor::StereoSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters)
+StereoSensorProcessor::StereoSensorProcessor(rclcpp::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters)
     : SensorProcessorBase(nodeHandle, generalParameters), originalWidth_(1) {}
 
 StereoSensorProcessor::~StereoSensorProcessor() = default;

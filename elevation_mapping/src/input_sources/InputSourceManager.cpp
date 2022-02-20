@@ -11,12 +11,12 @@
 
 namespace elevation_mapping {
 
-InputSourceManager::InputSourceManager(const ros::NodeHandle& nodeHandle) : nodeHandle_(nodeHandle) {}
+InputSourceManager::InputSourceManager(const rclcpp::NodeHandle& nodeHandle) : nodeHandle_(nodeHandle) {}
 
 bool InputSourceManager::configureFromRos(const std::string& inputSourcesNamespace) {
   XmlRpc::XmlRpcValue inputSourcesConfiguration;
   if (!nodeHandle_.getParam(inputSourcesNamespace, inputSourcesConfiguration)) {
-    ROS_WARN(
+    RCLCPP_WARN(
         "Could not load the input sources configuration from parameter\n "
         "%s, are you sure it was pushed to the parameter server? Assuming\n "
         "that you meant to leave it empty. Not subscribing to any inputs!\n",
@@ -33,11 +33,11 @@ bool InputSourceManager::configure(const XmlRpc::XmlRpcValue& config, const std:
   }
 
   if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
-    ROS_ERROR(
+    RCLCPP_ERROR(
         "%s: The input sources specification must be a struct. but is of "
         "of XmlRpcType %d",
         sourceConfigurationName.c_str(), config.getType());
-    ROS_ERROR("The xml passed in is formatted as follows:\n %s", config.toXml().c_str());
+    RCLCPP_ERROR(node_->get_logger(), "The xml passed in is formatted as follows:\n %s", config.toXml().c_str());
     return false;
   }
 
@@ -47,7 +47,7 @@ bool InputSourceManager::configure(const XmlRpc::XmlRpcValue& config, const std:
                                                                       nodeHandle_.param("map_frame_id", std::string("/map"))};
   // Configure all input sources in the list.
   for (auto& inputConfig : config) {
-    Input source = Input(ros::NodeHandle(nodeHandle_.resolveName(sourceConfigurationName + "/" + inputConfig.first)));
+    Input source = Input(rclcpp::NodeHandle(nodeHandle_.resolveName(sourceConfigurationName + "/" + inputConfig.first)));
 
     bool configured = source.configure(inputConfig.first, inputConfig.second, generalSensorProcessorConfig);
     if (!configured) {
@@ -61,7 +61,7 @@ bool InputSourceManager::configure(const XmlRpc::XmlRpcValue& config, const std:
     if (topicIsUnique) {
       sources_.push_back(std::move(source));
     } else {
-      ROS_WARN(
+      RCLCPP_WARN(
           "The input sources specification tried to subscribe to %s "
           "multiple times. Only subscribing once.",
           subscribedTopic.c_str());

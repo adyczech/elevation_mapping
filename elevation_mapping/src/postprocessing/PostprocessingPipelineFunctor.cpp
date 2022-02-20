@@ -14,7 +14,7 @@
 
 namespace elevation_mapping {
 
-PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(ros::NodeHandle& nodeHandle)
+PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::NodeHandle& nodeHandle)
     : nodeHandle_(nodeHandle), filterChain_("grid_map::GridMap"), filterChainConfigured_(false) {
   // TODO (magnus) Add logic when setting up failed. What happens actually if it is not configured?
   readParameters();
@@ -23,7 +23,7 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(ros::NodeHandle& no
 
   // Setup filter chain.
   if (!nodeHandle.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, nodeHandle)) {
-    ROS_WARN("Could not configure the filter chain. Will publish the raw elevation map without postprocessing!");
+    RCLCPP_WARN(node_->get_logger(), "Could not configure the filter chain. Will publish the raw elevation map without postprocessing!");
     return;
   }
 
@@ -39,13 +39,13 @@ void PostprocessingPipelineFunctor::readParameters() {
 
 grid_map::GridMap PostprocessingPipelineFunctor::operator()(GridMap& inputMap) {
   if (not filterChainConfigured_) {
-    ROS_WARN_ONCE("No postprocessing pipeline was configured. Forwarding the raw elevation map!");
+    RCLCPP_WARN_ONCE(node_->get_logger(), "No postprocessing pipeline was configured. Forwarding the raw elevation map!");
     return inputMap;
   }
 
   grid_map::GridMap outputMap;
   if (not filterChain_.update(inputMap, outputMap)) {
-    ROS_ERROR("Could not perform the grid map filter chain! Forwarding the raw elevation map!");
+    RCLCPP_ERROR(node_->get_logger(), "Could not perform the grid map filter chain! Forwarding the raw elevation map!");
     return inputMap;
   }
 
@@ -57,7 +57,7 @@ void PostprocessingPipelineFunctor::publish(const GridMap& gridMap) const {
   grid_map_msgs::msg::GridMap outputMessage;
   grid_map::GridMapRosConverter::toMessage(gridMap, outputMessage);
   publisher_.publish(outputMessage);
-  ROS_DEBUG("Elevation map raw has been published.");
+  RCLCPP_DEBUG(node_->get_logger(), "Elevation map raw has been published.");
 }
 
 bool PostprocessingPipelineFunctor::hasSubscribers() const {

@@ -5,7 +5,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include "elevation_mapping/postprocessing/PostprocessingPipelineFunctor.hpp"
 #include "elevation_mapping/postprocessing/PostprocessorPool.hpp"
@@ -17,16 +17,16 @@
 class RosFixture : public ::testing::Test {
   void SetUp() override {
     const std::map<std::string, std::string> remappings{};
-    ros::init(remappings, "post_processor_ros_test");
-    ros::start();
+    rclcpp::init(remappings, "post_processor_ros_test");
+    rclcpp::start();
   }
 
-  void TearDown() override { ros::shutdown(); }
+  void TearDown() override { rclcpp::shutdown(); }
 
  public:
   static void checkAcceptedTasks(uint poolSize, uint timeBetweenConsecutiveTasks, std::vector<bool> expectedAcceptanceOutcomes) {
     // Set up ROS node handle.
-    ros::NodeHandle nodeHandle("~");
+    rclcpp::NodeHandle nodeHandle("~");
 
     elevation_mapping::PostprocessorPool pool{poolSize, nodeHandle};
     int taskNumber = 0;

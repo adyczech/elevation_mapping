@@ -15,13 +15,13 @@
 
 namespace elevation_mapping {
 
-Input::Input(ros::NodeHandle nh) : nodeHandle_(nh), queueSize_(0), publishOnUpdate_(true) {}
+Input::Input(rclcpp::NodeHandle nh) : nodeHandle_(nh), queueSize_(0), publishOnUpdate_(true) {}
 
 bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
                       const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters) {
   // Configuration Guards.
   if (parameters.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
-    ROS_ERROR(
+    RCLCPP_ERROR(
         "Input source must be specified as map, but is "
         "XmlRpcType:%d.",
         parameters.getType());
@@ -36,11 +36,11 @@ bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
                                                             {"publish_on_update", XmlRpc::XmlRpcValue::TypeBoolean},
                                                             {"sensor_processor", XmlRpc::XmlRpcValue::TypeStruct}}) {
     if (!parameters.hasMember(member.first)) {
-      ROS_ERROR("Could not configure input source %s because no %s was given.", name.c_str(), member.first.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "Could not configure input source %s because no %s was given.", name.c_str(), member.first.c_str());
       return false;
     }
     if (parameters[member.first].getType() != member.second) {
-      ROS_ERROR(
+      RCLCPP_ERROR(
           "Could not configure input source %s because member %s has the "
           "wrong type.",
           name.c_str(), member.first.c_str());
@@ -55,7 +55,7 @@ bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
   if (queueSize >= 0) {
     queueSize_ = static_cast<unsigned int>(queueSize);
   } else {
-    ROS_ERROR("The specified queue_size is negative.");
+    RCLCPP_ERROR(node_->get_logger(), "The specified queue_size is negative.");
     return false;
   }
   publishOnUpdate_ = static_cast<bool>(parameters["publish_on_update"]);
@@ -65,7 +65,7 @@ bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
     return false;
   }
 
-  ROS_DEBUG("Configured %s:%s @ %s (publishing_on_update: %s), using %s to process data.\n", type_.c_str(), name_.c_str(),
+  RCLCPP_DEBUG(node_->get_logger(), "Configured %s:%s @ %s (publishing_on_update: %s), using %s to process data.\n", type_.c_str(), name_.c_str(),
             nodeHandle_.resolveName(topic_).c_str(), publishOnUpdate_ ? "true" : "false",
             static_cast<std::string>(parameters["sensor_processor"]["type"]).c_str());
   return true;
@@ -78,11 +78,11 @@ std::string Input::getSubscribedTopic() const {
 bool Input::configureSensorProcessor(std::string name, const XmlRpc::XmlRpcValue& parameters,
                                      const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters) {
   if (!parameters["sensor_processor"].hasMember("type")) {
-    ROS_ERROR("Could not configure sensor processor of input source %s because no type was given.", name.c_str());
+    RCLCPP_ERROR(node_->get_logger(), "Could not configure sensor processor of input source %s because no type was given.", name.c_str());
     return false;
   }
   if (parameters["sensor_processor"]["type"].getType() != XmlRpc::XmlRpcValue::TypeString) {
-    ROS_ERROR(
+    RCLCPP_ERROR(
         "Could not configure sensor processor of input source %s because the member 'type' has the "
         "wrong type.",
         name.c_str());
@@ -98,7 +98,7 @@ bool Input::configureSensorProcessor(std::string name, const XmlRpc::XmlRpcValue
   } else if (sensorType == "perfect") {
     sensorProcessor_.reset(new PerfectSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
   } else {
-    ROS_ERROR("The sensor type %s is not available.", sensorType.c_str());
+    RCLCPP_ERROR(node_->get_logger(), "The sensor type %s is not available.", sensorType.c_str());
     return false;
   }
 

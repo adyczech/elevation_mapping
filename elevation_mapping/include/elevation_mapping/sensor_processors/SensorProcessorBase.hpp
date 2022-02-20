@@ -9,7 +9,7 @@
 #pragma once
 
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -56,7 +56,7 @@ class SensorProcessorBase {
    * @param nodeHandle the ROS node handle.
    * @param generalConfig General parameters that the sensor processor must know in order to work. // TODO (magnus) improve documentation.
    */
-  SensorProcessorBase(ros::NodeHandle& nodeHandle, const GeneralParameters& generalConfig);
+  SensorProcessorBase(rclcpp::NodeHandle& nodeHandle, const GeneralParameters& generalConfig);
 
   /*!
    * Destructor.
@@ -119,7 +119,7 @@ class SensorProcessorBase {
    * @param timeStamp the time stamp for the transformation.
    * @return true if successful.
    */
-  bool updateTransformations(const ros::Time& timeStamp);
+  bool updateTransformations(const rclcpp::Time& timeStamp);
 
   /*!
    * Transforms the point cloud the a target frame.
@@ -137,7 +137,7 @@ class SensorProcessorBase {
   void removePointsOutsideLimits(PointCloudType::ConstPtr reference, std::vector<PointCloudType::Ptr>& pointClouds);
 
   //! ROS nodehandle.
-  ros::NodeHandle& nodeHandle_;
+  rclcpp::NodeHandle& nodeHandle_;
 
   //! TF transform listener and buffer.
   tf2_ros::Buffer transformBuffer_;

@@ -10,7 +10,7 @@
 
 namespace elevation_mapping {
 
-PostprocessorPool::PostprocessorPool(std::size_t poolSize, ros::NodeHandle nodeHandle) {
+PostprocessorPool::PostprocessorPool(std::size_t poolSize, rclcpp::NodeHandle nodeHandle) {
   for (std::size_t i = 0; i < poolSize; ++i) {
     // Add worker to the collection.
     workers_.emplace_back(std::make_unique<PostprocessingWorker>(nodeHandle));
@@ -65,7 +65,7 @@ void PostprocessorPool::wrapTask(size_t serviceIndex) {
   }
   // Suppress all exceptions.
   catch (const std::exception& exception) {
-    ROS_ERROR_STREAM("Postprocessor pipeline, thread " << serviceIndex << " experienced an error: " << exception.what());
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "Postprocessor pipeline, thread " << serviceIndex << " experienced an error: " << exception.what());
   }
 
   // Task has finished, so increment count of available threads.
