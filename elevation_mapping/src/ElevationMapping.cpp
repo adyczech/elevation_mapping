@@ -93,7 +93,7 @@ void ElevationMapping::setupSubscribers() {  // Handle input_sources configurati
   }
 
   if (!robotPoseTopic_.empty()) {
-    robotPoseSubscriber_.subscribe(node_, robotPoseTopic_, 1);
+    robotPoseSubscriber_.subscribe(shared_from_this(), robotPoseTopic_, rmw_qos_profile_sensor_data);
     robotPoseCache_.connectInput(robotPoseSubscriber_);
     robotPoseCache_.setCacheSize(robotPoseCacheSize_);
   } else {
