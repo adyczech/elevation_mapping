@@ -15,7 +15,7 @@
 
 namespace elevation_mapping {
 
-Input::Input(rclcpp::NodeHandle nh) : nodeHandle_(nh), queueSize_(0), publishOnUpdate_(true) {}
+Input::Input(rclcpp::Node::SharedPtr node) : node_(node), queueSize_(0), publishOnUpdate_(true) {}
 
 bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
                       const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters) {
@@ -66,13 +66,13 @@ bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
   }
 
   RCLCPP_DEBUG(node_->get_logger(), "Configured %s:%s @ %s (publishing_on_update: %s), using %s to process data.\n", type_.c_str(), name_.c_str(),
-            nodeHandle_.resolveName(topic_).c_str(), publishOnUpdate_ ? "true" : "false",
+            node_->resolveName(topic_).c_str(), publishOnUpdate_ ? "true" : "false",
             static_cast<std::string>(parameters["sensor_processor"]["type"]).c_str());
   return true;
 }
 
 std::string Input::getSubscribedTopic() const {
-  return nodeHandle_.resolveName(topic_);
+  return node_->resolveName(topic_);
 }
 
 bool Input::configureSensorProcessor(std::string name, const XmlRpc::XmlRpcValue& parameters,
@@ -90,13 +90,13 @@ bool Input::configureSensorProcessor(std::string name, const XmlRpc::XmlRpcValue
   }
   std::string sensorType = static_cast<std::string>(parameters["sensor_processor"]["type"]);
   if (sensorType == "structured_light") {
-    sensorProcessor_.reset(new StructuredLightSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+    sensorProcessor_.reset(new StructuredLightSensorProcessor(node_, generalSensorProcessorParameters));
   } else if (sensorType == "stereo") {
-    sensorProcessor_.reset(new StereoSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+    sensorProcessor_.reset(new StereoSensorProcessor(node_, generalSensorProcessorParameters));
   } else if (sensorType == "laser") {
-    sensorProcessor_.reset(new LaserSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+    sensorProcessor_.reset(new LaserSensorProcessor(node_, generalSensorProcessorParameters));
   } else if (sensorType == "perfect") {
-    sensorProcessor_.reset(new PerfectSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+    sensorProcessor_.reset(new PerfectSensorProcessor(node_, generalSensorProcessorParameters));
   } else {
     RCLCPP_ERROR(node_->get_logger(), "The sensor type %s is not available.", sensorType.c_str());
     return false;

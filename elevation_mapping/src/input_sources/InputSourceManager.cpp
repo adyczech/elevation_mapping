@@ -11,16 +11,16 @@
 
 namespace elevation_mapping {
 
-InputSourceManager::InputSourceManager(const rclcpp::NodeHandle& nodeHandle) : nodeHandle_(nodeHandle) {}
+InputSourceManager::InputSourceManager(const rclcpp::Node::SharedPtr node) : node_(node(node) {}
 
 bool InputSourceManager::configureFromRos(const std::string& inputSourcesNamespace) {
   XmlRpc::XmlRpcValue inputSourcesConfiguration;
-  if (!nodeHandle_.getParam(inputSourcesNamespace, inputSourcesConfiguration)) {
+  if (!node_->getParam(inputSourcesNamespace, inputSourcesConfiguration)) {
     RCLCPP_WARN(
         "Could not load the input sources configuration from parameter\n "
         "%s, are you sure it was pushed to the parameter server? Assuming\n "
         "that you meant to leave it empty. Not subscribing to any inputs!\n",
-        nodeHandle_.resolveName(inputSourcesNamespace).c_str());
+        node_->resolveName(inputSourcesNamespace).c_str());
     return false;
   }
   return configure(inputSourcesConfiguration, inputSourcesNamespace);
@@ -43,11 +43,11 @@ bool InputSourceManager::configure(const XmlRpc::XmlRpcValue& config, const std:
 
   bool successfulConfiguration = true;
   std::set<std::string> subscribedTopics;
-  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{nodeHandle_.param("robot_base_frame_id", std::string("/robot")),
-                                                                      nodeHandle_.param("map_frame_id", std::string("/map"))};
+  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{node_->param("robot_base_frame_id", std::string("/robot")),
+                                                                      node_->param("map_frame_id", std::string("/map"))};
   // Configure all input sources in the list.
   for (auto& inputConfig : config) {
-    Input source = Input(rclcpp::NodeHandle(nodeHandle_.resolveName(sourceConfigurationName + "/" + inputConfig.first)));
+    Input source = Input(rclcpp::Node(node_->resolveName(sourceConfigurationName + "/" + inputConfig.first)));
 
     bool configured = source.configure(inputConfig.first, inputConfig.second, generalSensorProcessorConfig);
     if (!configured) {

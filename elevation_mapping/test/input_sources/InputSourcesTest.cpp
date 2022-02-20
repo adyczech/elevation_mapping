@@ -14,10 +14,10 @@
 
 static void assertSuccessAndNumberOfSources(const std::string& inputConfiguration, bool successExpected,
                                             uint32_t numberOfExpectedInputSources) {
-  elevation_mapping::InputSourceManager inputSourceManager(rclcpp::NodeHandle("~"));
+  elevation_mapping::InputSourceManager inputSourceManager(rclcpp::Node("~"));
   bool success = inputSourceManager.configureFromRos(inputConfiguration);
   ASSERT_EQ(success, successExpected) << "Configuration was:\n"
-                                      << rclcpp::NodeHandle("~").param<XmlRpc::XmlRpcValue>(inputConfiguration, "not set").toXml() << "\n";
+                                      << rclcpp::Node("~").param<XmlRpc::XmlRpcValue>(inputConfiguration, "not set").toXml() << "\n";
   ASSERT_EQ(inputSourceManager.getNumberOfSources(), numberOfExpectedInputSources);
 }
 
@@ -74,11 +74,11 @@ TEST(InputSources, ConfigurationQueueSizeIsNegative) {  // NOLINT
 }
 
 TEST(InputSources, UnknownType) {  // NOLINT
-  rclcpp::NodeHandle nodeHandle("~");
-  elevation_mapping::InputSourceManager inputSourceManager(nodeHandle);
+  rclcpp::Node node("~");
+  elevation_mapping::InputSourceManager inputSourceManager(node);
   inputSourceManager.configureFromRos("unknown_type");
 
-  elevation_mapping::ElevationMapping map{nodeHandle};
+  elevation_mapping::ElevationMapping map{node};
 
   // Trying to register this misconfigured InputSourceManager to our map should fail.
   bool success =
@@ -87,19 +87,19 @@ TEST(InputSources, UnknownType) {  // NOLINT
 }
 
 TEST(ElevationMap, Constructor) {  // NOLINT
-  rclcpp::NodeHandle nodeHandle("~");
-  elevation_mapping::ElevationMapping map(nodeHandle);
+  rclcpp::Node node("~");
+  elevation_mapping::ElevationMapping map(node);
 }
 
 TEST(InputSources, ListeningToTopicsAfterRegistration) {  // NOLINT
   // subscribe to the default parameter "input_sources"
-  rclcpp::NodeHandle nodeHandle("~");
+  rclcpp::Node node("~");
   class ElevationMappingWithInputSourcesAccessor : public elevation_mapping::ElevationMapping {
    public:
-    ElevationMappingWithInputSourcesAccessor(rclcpp::NodeHandle nodeHandle) : elevation_mapping::ElevationMapping(nodeHandle) {}
+    ElevationMappingWithInputSourcesAccessor(rclcpp::Node::SharedPtr node) : elevation_mapping::ElevationMapping(node) {}
     virtual ~ElevationMappingWithInputSourcesAccessor() = default;
     int getNumberOfSources() { return inputSources_.getNumberOfSources(); }
-  } map{nodeHandle};
+  } map{node};
 
   // Wait a bit.
   rclcpp::spinOnce();
@@ -107,9 +107,9 @@ TEST(InputSources, ListeningToTopicsAfterRegistration) {  // NOLINT
   rclcpp::spinOnce();
 
   // Publish to the topics we expect map to subscribe.
-  rclcpp::NodeHandle nh("");
-  rclcpp::Publisher firstLidarPublisher = nh.advertise<sensor_msgs::msg::PointCloud2>("/lidar_1/depth/points", 1, false);
-  rclcpp::Publisher secondLidarPublisher = nh.advertise<sensor_msgs::msg::PointCloud2>("/lidar_2/depth/points", 1, false);
+  rclcpp::Node node("");
+  rclcpp::Publisher firstLidarPublisher = node.advertise<sensor_msgs::msg::PointCloud2>("/lidar_1/depth/points", 1, false);
+  rclcpp::Publisher secondLidarPublisher = node.advertise<sensor_msgs::msg::PointCloud2>("/lidar_2/depth/points", 1, false);
 
   // Check if we have exactly one subscriber per topic.
   ASSERT_EQ(firstLidarPublisher.getNumSubscribers(), 1);

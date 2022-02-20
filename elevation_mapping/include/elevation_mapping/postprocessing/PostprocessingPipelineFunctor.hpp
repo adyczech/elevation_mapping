@@ -21,7 +21,7 @@ namespace elevation_mapping {
  *   ========
  *
  *   // Create the functor, it will configure the postprocessing pipeline from the ros parameters.
- *   PostprocessingPipelineFunctor postprocessor(nodeHandle);
+ *   PostprocessingPipelineFunctor postprocessor(node);
  *
  *   // Call the functor by feeding it some input data. It will postprocess and publish the processed data.
  *   postprocessor(gridMap);
@@ -33,9 +33,9 @@ class PostprocessingPipelineFunctor {
 
   /**
    * @brief Explicit Constructor.
-   * @param nodeHandle The node handle to read parameters from and to publish output data.
+   * @param node Shared node pointer to read parameters from and to publish output data.
    */
-  explicit PostprocessingPipelineFunctor(rclcpp::NodeHandle& nodeHandle);
+  explicit PostprocessingPipelineFunctor(rclcpp::Node::SharedPtr node);
 
   /**
    * @brief Destructor.
@@ -69,8 +69,8 @@ class PostprocessingPipelineFunctor {
    */
   void readParameters();
 
-  //! ROS nodehandle.
-  rclcpp::NodeHandle& nodeHandle_;
+  //! ROS node shared pointer.
+  rclcpp::Node::SharedPtr node_;
 
   //! Name of the output grid map topic.
   std::string outputTopic_;

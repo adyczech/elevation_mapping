@@ -26,9 +26,9 @@ class RosFixture : public ::testing::Test {
  public:
   static void checkAcceptedTasks(uint poolSize, uint timeBetweenConsecutiveTasks, std::vector<bool> expectedAcceptanceOutcomes) {
     // Set up ROS node handle.
-    rclcpp::NodeHandle nodeHandle("~");
+    rclcpp::Node node("~");
 
-    elevation_mapping::PostprocessorPool pool{poolSize, nodeHandle};
+    elevation_mapping::PostprocessorPool pool{poolSize, node};
     int taskNumber = 0;
     for (auto expectedOutcome : expectedAcceptanceOutcomes) {
       bool accepted = pool.runTask(grid_map::GridMap());

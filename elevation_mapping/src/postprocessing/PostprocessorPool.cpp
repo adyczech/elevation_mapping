@@ -10,10 +10,10 @@
 
 namespace elevation_mapping {
 
-PostprocessorPool::PostprocessorPool(std::size_t poolSize, rclcpp::NodeHandle nodeHandle) {
+PostprocessorPool::PostprocessorPool(std::size_t poolSize, rclcpp::Node::SharedPtr node) {
   for (std::size_t i = 0; i < poolSize; ++i) {
     // Add worker to the collection.
-    workers_.emplace_back(std::make_unique<PostprocessingWorker>(nodeHandle));
+    workers_.emplace_back(std::make_unique<PostprocessingWorker>(node));
     // Create one service per thread
     availableServices_.push_back(i);
   }

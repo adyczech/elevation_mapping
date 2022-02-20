@@ -17,7 +17,7 @@
 TEST(ElevationMap, Test) {  // NOLINT
   //  rclcpp::M_string remappings;
   //  rclcpp::init(remappings, "test_elevation_mapping");
-  //  rclcpp::NodeHandle nodeHandle("~");
-  //  ElevationMap map(nodeHandle);
+  //  rclcpp::Node node("~");
+  //  ElevationMap map(node);
   // map.setGeometry(Length(1.0, 1.0), 0.01, Position(0.0, 0.0));
 }

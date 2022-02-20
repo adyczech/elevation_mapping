@@ -14,15 +14,15 @@
 
 namespace elevation_mapping {
 
-PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::NodeHandle& nodeHandle)
-    : nodeHandle_(nodeHandle), filterChain_("grid_map::GridMap"), filterChainConfigured_(false) {
+PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::SharedPtr node)
+    : node_(node), filterChain_("grid_map::GridMap"), filterChainConfigured_(false) {
   // TODO (magnus) Add logic when setting up failed. What happens actually if it is not configured?
   readParameters();
 
-  publisher_ = nodeHandle_.advertise<grid_map_msgs::msg::GridMap>(outputTopic_, 1, true);
+  publisher_ = node_->advertise<grid_map_msgs::msg::GridMap>(outputTopic_, 1, true);
 
   // Setup filter chain.
-  if (!nodeHandle.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, nodeHandle)) {
+  if (!node.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, node)) {
     RCLCPP_WARN(node_->get_logger(), "Could not configure the filter chain. Will publish the raw elevation map without postprocessing!");
     return;
   }
@@ -33,8 +33,8 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::NodeHandle&
 PostprocessingPipelineFunctor::~PostprocessingPipelineFunctor() = default;
 
 void PostprocessingPipelineFunctor::readParameters() {
-  nodeHandle_.param("output_topic", outputTopic_, std::string("elevation_map_raw"));
-  nodeHandle_.param("postprocessor_pipeline_name", filterChainParametersName_, std::string("postprocessor_pipeline"));
+  node_->param("output_topic", outputTopic_, std::string("elevation_map_raw"));
+  node_->param("postprocessor_pipeline_name", filterChainParametersName_, std::string("postprocessor_pipeline"));
 }
 
 grid_map::GridMap PostprocessingPipelineFunctor::operator()(GridMap& inputMap) {

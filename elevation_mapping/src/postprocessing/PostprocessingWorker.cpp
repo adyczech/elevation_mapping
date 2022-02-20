@@ -10,8 +10,8 @@
 
 namespace elevation_mapping {
 
-PostprocessingWorker::PostprocessingWorker(rclcpp::NodeHandle nodeHandle)
-    : functor_(nodeHandle), work_(ioService_), thread_(boost::bind(&boost::asio::io_service::run, &ioService_)) {}
+PostprocessingWorker::PostprocessingWorker(rclcpp::Node::SharedPtr node)
+    : functor_(node), work_(ioService_), thread_(boost::bind(&boost::asio::io_service::run, &ioService_)) {}
 
 PostprocessingWorker::GridMap PostprocessingWorker::processBuffer() {
   return functor_(dataBuffer_);

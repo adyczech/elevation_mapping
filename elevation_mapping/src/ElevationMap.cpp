@@ -33,12 +33,12 @@ float intAsFloat(const uint32_t input) {
 
 namespace elevation_mapping {
 
-ElevationMap::ElevationMap(rclcpp::NodeHandle nodeHandle)
-    : nodeHandle_(nodeHandle),
+ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
+    : node_(node),
       rawMap_({"elevation", "variance", "horizontal_variance_x", "horizontal_variance_y", "horizontal_variance_xy", "color", "time",
                "dynamic_time", "lowest_scan_point", "sensor_x_at_lowest_scan", "sensor_y_at_lowest_scan", "sensor_z_at_lowest_scan"}),
       fusedMap_({"elevation", "upper_bound", "lower_bound", "color"}),
-      postprocessorPool_(nodeHandle.param("postprocessor_num_threads", 1), nodeHandle_),
+      postprocessorPool_(node.param("postprocessor_num_threads", 1), node_),
       hasUnderlyingMap_(false),
       minVariance_(0.000009),
       maxVariance_(0.0009),
@@ -54,12 +54,12 @@ ElevationMap::ElevationMap(rclcpp::NodeHandle nodeHandle)
   fusedMap_.setBasicLayers({"elevation", "upper_bound", "lower_bound"});
   clear();
 
-  elevationMapFusedPublisher_ = nodeHandle_.advertise<grid_map_msgs::msg::GridMap>("elevation_map", 1);
+  elevationMapFusedPublisher_ = node_->advertise<grid_map_msgs::msg::GridMap>("elevation_map", 1);
   if (!underlyingMapTopic_.empty()) {
-    underlyingMapSubscriber_ = nodeHandle_.subscribe(underlyingMapTopic_, 1, &ElevationMap::underlyingMapCallback, this);
+    underlyingMapSubscriber_ = node_->subscribe(underlyingMapTopic_, 1, &ElevationMap::underlyingMapCallback, this);
   }
   // TODO(max): if (enableVisibilityCleanup_) when parameter cleanup is ready.
-  visibilityCleanupMapPublisher_ = nodeHandle_.advertise<grid_map_msgs::msg::GridMap>("visibility_cleanup_map", 1);
+  visibilityCleanupMapPublisher_ = node_->advertise<grid_map_msgs::msg::GridMap>("visibility_cleanup_map", 1);
 
   initialTime_ = rclcpp::Time::now();
 }

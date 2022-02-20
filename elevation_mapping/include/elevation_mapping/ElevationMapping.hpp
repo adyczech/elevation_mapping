@@ -45,14 +45,14 @@ enum class InitializationMethods { PlanarFloorInitializer };
  * The elevation mapping main class. Coordinates the ROS interfaces, the timing,
  * and the data handling between the other classes.
  */
-class ElevationMapping {
+class ElevationMapping : public rclcpp::Node {
  public:
   /*!
    * Constructor.
    *
-   * @param nodeHandle the ROS node handle.
+   * @param node the shared pointer to the ROS node node handle.
    */
-  explicit ElevationMapping(rclcpp::NodeHandle& nodeHandle);
+  explicit ElevationMapping(const rclcpp::NodeOptions & node);
 
   /*!
    * Destructor.
@@ -181,6 +181,14 @@ class ElevationMapping {
 
  private:
   /*!
+   * Initializes the node.
+   * 
+   * Gets called by a timer after the node is constructed to allow for the use of
+   * shared_from_this() when initializing member objects.
+   */
+  void initializeNode();
+
+  /*!
    * Reads and verifies the ROS parameters.
    *
    * @return true if successful.
@@ -255,14 +263,10 @@ class ElevationMapping {
    */
   bool isFusingEnabled();
 
-  //! ROS nodehandle.
-  rclcpp::NodeHandle nodeHandle_;
-
  protected:
   //! Input sources.
-  InputSourceManager inputSources_;
-
-
+  std::shared_ptr<InputSourceManager> inputSources_;
+  
   //! ROS subscribers.
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
 
@@ -304,11 +308,11 @@ class ElevationMapping {
   std::string robotPoseTopic_;
 
   //! Elevation map.
-  ElevationMap map_;
+  std::shared_ptr<ElevationMap> map_;
 
 
   //! Robot motion elevation map updater.
-  RobotMotionMapUpdater robotMotionMapUpdater_;
+  std::shared_ptr<RobotMotionMapUpdater> robotMotionMapUpdater_;
 
   //! If true, robot motion updates are ignored.
   bool ignoreRobotMotionUpdates_;
@@ -321,6 +325,9 @@ class ElevationMapping {
 
   //! Timer for the robot motion update.
   rclcpp::Timer mapUpdateTimer_;
+
+  //! Timer for the initialization of the node
+  rclcpp::TimerBase::SharedPtr initTimer_;
 
   //! Maximum time that the map will not be updated.
   rclcpp::Duration maxNoUpdateDuration_;

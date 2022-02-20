@@ -38,7 +38,7 @@ class ElevationMap {
   /*!
    * Constructor.
    */
-  explicit ElevationMap(rclcpp::NodeHandle nodeHandle);
+  explicit ElevationMap(rclcpp::Node::SharedPtr node);
 
   /*!
    * Destructor.
@@ -273,8 +273,8 @@ class ElevationMap {
    */
   float cumulativeDistributionFunction(float x, float mean, float standardDeviation);
 
-  //! ROS nodehandle.
-  rclcpp::NodeHandle nodeHandle_;
+  //! ROS node shared pointer.
+  rclcpp::Node::SharedPtr node_;
 
   //! Raw elevation map as grid map.
   grid_map::GridMap rawMap_;

@@ -28,10 +28,10 @@ class Input {
 
   /**
    * @brief Constructor.
-   * @param nh Reference to the nodeHandle of the manager. Used to subscribe
+   * @param node Shared pointer to the manager Node. Used to subscribe
    * to inputs.
    */
-  explicit Input(rclcpp::NodeHandle nh);
+  explicit Input(rclcpp::Node::SharedPtr node);
 
   /**
    * @brief Configure the input source.
@@ -77,7 +77,7 @@ class Input {
 
   // ROS connection.
   rclcpp::Subscriber subscriber_;
-  rclcpp::NodeHandle nodeHandle_;
+  rclcpp::Node::SharedPtr node_;
 
   //! Sensor processor
   SensorProcessorBase::Ptr sensorProcessor_;
@@ -92,7 +92,7 @@ class Input {
 
 template <typename MsgT>
 void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
-  subscriber_ = nodeHandle_.subscribe<MsgT>(
+  subscriber_ = node_->subscribe<MsgT>(
       topic_, queueSize_, std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
   RCLCPP_INFO(node_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", type_.c_str(), topic_.c_str(), queueSize_);
 }

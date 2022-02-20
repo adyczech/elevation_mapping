@@ -24,9 +24,9 @@ class InputSourceManager {
  public:
   /**
    * @brief Constructor.
-   * @param nodeHandle Used to resolve the namespace and setup the subscribers.
+   * @param node Used to resolve the namespace and setup the subscribers.
    */
-  explicit InputSourceManager(const rclcpp::NodeHandle& nodeHandle);
+  explicit InputSourceManager(const rclcpp::Node::SharedPtr node);
 
   /**
    * @brief Configure the input sources from a configuration stored on the
@@ -68,7 +68,7 @@ class InputSourceManager {
   std::vector<Input> sources_;
 
   //! Node handle to load.
-  rclcpp::NodeHandle nodeHandle_;
+  rclcpp::Node::SharedPtr node_;
 };
 
 // Template definitions
