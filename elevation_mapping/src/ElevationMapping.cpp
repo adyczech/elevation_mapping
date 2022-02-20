@@ -106,33 +106,33 @@ void ElevationMapping::setupServices() {
   rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForTriggerFusion = rclcpp::AdvertiseServiceOptions::create<std_srvs::srv::Empty>(
       "trigger_fusion", boost::bind(&ElevationMapping::fuseEntireMapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
       &fusionServiceQueue_);
-  fusionTriggerService_ = node_->advertiseService(advertiseServiceOptionsForTriggerFusion);
+  fusionTriggerService_ = this->advertiseService(advertiseServiceOptionsForTriggerFusion);
 
   rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForGetFusedSubmap = rclcpp::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
       "get_submap", boost::bind(&ElevationMapping::getFusedSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(), &fusionServiceQueue_);
-  fusedSubmapService_ = node_->advertiseService(advertiseServiceOptionsForGetFusedSubmap);
+  fusedSubmapService_ = this->advertiseService(advertiseServiceOptionsForGetFusedSubmap);
 
   rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForGetRawSubmap = rclcpp::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
       "get_raw_submap", boost::bind(&ElevationMapping::getRawSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
       &fusionServiceQueue_);
-  rawSubmapService_ = node_->advertiseService(advertiseServiceOptionsForGetRawSubmap);
+  rawSubmapService_ = this->advertiseService(advertiseServiceOptionsForGetRawSubmap);
 
-  clearMapService_ = node_->advertiseService("clear_map", &ElevationMapping::clearMapServiceCallback, this);
-  enableUpdatesService_ = node_->advertiseService("enable_updates", &ElevationMapping::enableUpdatesServiceCallback, this);
-  disableUpdatesService_ = node_->advertiseService("disable_updates", &ElevationMapping::disableUpdatesServiceCallback, this);
-  maskedReplaceService_ = node_->advertiseService("masked_replace", &ElevationMapping::maskedReplaceServiceCallback, this);
-  saveMapService_ = node_->advertiseService("save_map", &ElevationMapping::saveMapServiceCallback, this);
-  loadMapService_ = node_->advertiseService("load_map", &ElevationMapping::loadMapServiceCallback, this);
+  clearMapService_ = this->advertiseService("clear_map", &ElevationMapping::clearMapServiceCallback, this);
+  enableUpdatesService_ = this->advertiseService("enable_updates", &ElevationMapping::enableUpdatesServiceCallback, this);
+  disableUpdatesService_ = this->advertiseService("disable_updates", &ElevationMapping::disableUpdatesServiceCallback, this);
+  maskedReplaceService_ = this->advertiseService("masked_replace", &ElevationMapping::maskedReplaceServiceCallback, this);
+  saveMapService_ = this->advertiseService("save_map", &ElevationMapping::saveMapServiceCallback, this);
+  loadMapService_ = this->advertiseService("load_map", &ElevationMapping::loadMapServiceCallback, this);
 }
 
 void ElevationMapping::setupTimers() {
-  mapUpdateTimer_ = node_->createTimer(maxNoUpdateDuration_, &ElevationMapping::mapUpdateTimerCallback, this, true, false);
+  mapUpdateTimer_ = this->createTimer(maxNoUpdateDuration_, &ElevationMapping::mapUpdateTimerCallback, this, true, false);
 
   if (!fusedMapPublishTimerDuration_.isZero()) {
     rclcpp::TimerOptions timerOptions =
         rclcpp::TimerOptions(fusedMapPublishTimerDuration_, boost::bind(&ElevationMapping::publishFusedMapCallback, this, _1),
                           &fusionServiceQueue_, false, false);
-    fusedMapPublishTimer_ = node_->createTimer(timerOptions);
+    fusedMapPublishTimer_ = this->createTimer(timerOptions);
   }
 
   // Multi-threading for visibility cleanup. Visibility clean-up does not help when continuous clean-up is enabled.
@@ -140,7 +140,7 @@ void ElevationMapping::setupTimers() {
     rclcpp::TimerOptions timerOptions =
         rclcpp::TimerOptions(visibilityCleanupTimerDuration_, boost::bind(&ElevationMapping::visibilityCleanupCallback, this, _1),
                           &visibilityCleanupQueue_, false, false);
-    visibilityCleanupTimer_ = node_->createTimer(timerOptions);
+    visibilityCleanupTimer_ = this->createTimer(timerOptions);
   }
 }
 
@@ -164,7 +164,7 @@ ElevationMapping::~ElevationMapping() {
     visibilityCleanupQueue_.clear();
   }
 
-  node_->shutdown();
+  this->shutdown();
 
   // Join threads.
   if (fusionServiceThread_.joinable()) {
@@ -177,18 +177,18 @@ ElevationMapping::~ElevationMapping() {
 
 bool ElevationMapping::readParameters() {
   // ElevationMapping parameters.
-  node_->param("point_cloud_topic", pointCloudTopic_, std::string("/points"));
-  node_->param("robot_pose_with_covariance_topic", robotPoseTopic_, std::string("/pose"));
-  node_->param("track_point_frame_id", trackPointFrameId_, std::string("/robot"));
-  node_->param("track_point_x", trackPoint_.x(), 0.0);
-  node_->param("track_point_y", trackPoint_.y(), 0.0);
-  node_->param("track_point_z", trackPoint_.z(), 0.0);
+  this->param("point_cloud_topic", pointCloudTopic_, std::string("/points"));
+  this->param("robot_pose_with_covariance_topic", robotPoseTopic_, std::string("/pose"));
+  this->param("track_point_frame_id", trackPointFrameId_, std::string("/robot"));
+  this->param("track_point_x", trackPoint_.x(), 0.0);
+  this->param("track_point_y", trackPoint_.y(), 0.0);
+  this->param("track_point_z", trackPoint_.z(), 0.0);
 
-  node_->param("robot_pose_cache_size", robotPoseCacheSize_, 200);
+  this->param("robot_pose_cache_size", robotPoseCacheSize_, 200);
   RCLCPP_ASSERT(robotPoseCacheSize_ >= 0);
 
   double minUpdateRate;
-  node_->param("min_update_rate", minUpdateRate, 2.0);
+  this->param("min_update_rate", minUpdateRate, 2.0);
   if (minUpdateRate == 0.0) {
     maxNoUpdateDuration_.fromSec(0.0);
     RCLCPP_WARN(this->get_logger(), "Rate for publishing the map is zero.");
@@ -198,11 +198,11 @@ bool ElevationMapping::readParameters() {
   RCLCPP_ASSERT(!maxNoUpdateDuration_.isZero());
 
   double timeTolerance;
-  node_->param("time_tolerance", timeTolerance, 0.0);
+  this->param("time_tolerance", timeTolerance, 0.0);
   timeTolerance_.fromSec(timeTolerance);
 
   double fusedMapPublishingRate;
-  node_->param("fused_map_publishing_rate", fusedMapPublishingRate, 1.0);
+  this->param("fused_map_publishing_rate", fusedMapPublishingRate, 1.0);
   if (fusedMapPublishingRate == 0.0) {
     fusedMapPublishTimerDuration_.fromSec(0.0);
     RCLCPP_WARN(
@@ -216,7 +216,7 @@ bool ElevationMapping::readParameters() {
   }
 
   double visibilityCleanupRate;
-  node_->param("visibility_cleanup_rate", visibilityCleanupRate, 1.0);
+  this->param("visibility_cleanup_rate", visibilityCleanupRate, 1.0);
   if (visibilityCleanupRate == 0.0) {
     visibilityCleanupTimerDuration_.fromSec(0.0);
     RCLCPP_WARN(this->get_logger(), "Rate for visibility cleanup is zero and therefore disabled.");
@@ -226,39 +226,39 @@ bool ElevationMapping::readParameters() {
   }
 
   // ElevationMap parameters. TODO Move this to the elevation map class.
-  node_->param("map_frame_id", mapFrameId_, std::string("/map"));
+  this->param("map_frame_id", mapFrameId_, std::string("/map"));
   map_->setFrameId(mapFrameId_);
 
   grid_map::Length length;
   grid_map::Position position;
   double resolution;
-  node_->param("length_in_x", length(0), 1.5);
-  node_->param("length_in_y", length(1), 1.5);
-  node_->param("position_x", position.x(), 0.0);
-  node_->param("position_y", position.y(), 0.0);
-  node_->param("resolution", resolution, 0.01);
+  this->param("length_in_x", length(0), 1.5);
+  this->param("length_in_y", length(1), 1.5);
+  this->param("position_x", position.x(), 0.0);
+  this->param("position_y", position.y(), 0.0);
+  this->param("resolution", resolution, 0.01);
   map_->setGeometry(length, resolution, position);
 
-  node_->param("min_variance", map_->minVariance_, pow(0.003, 2));
-  node_->param("max_variance", map_->maxVariance_, pow(0.03, 2));
-  node_->param("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_, 2.5);
-  node_->param("multi_height_noise", map_->multiHeightNoise_, pow(0.003, 2));
-  node_->param("min_horizontal_variance", map_->minHorizontalVariance_, pow(resolution / 2.0, 2));  // two-sigma
-  node_->param("max_horizontal_variance", map_->maxHorizontalVariance_, 0.5);
-  node_->param("underlying_map_topic", map_->underlyingMapTopic_, std::string());
-  node_->param("enable_visibility_cleanup", map_->enableVisibilityCleanup_, true);
-  node_->param("enable_continuous_cleanup", map_->enableContinuousCleanup_, false);
-  node_->param("scanning_duration", map_->scanningDuration_, 1.0);
-  node_->param("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_, std::string("mask"));
+  this->param("min_variance", map_->minVariance_, pow(0.003, 2));
+  this->param("max_variance", map_->maxVariance_, pow(0.03, 2));
+  this->param("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_, 2.5);
+  this->param("multi_height_noise", map_->multiHeightNoise_, pow(0.003, 2));
+  this->param("min_horizontal_variance", map_->minHorizontalVariance_, pow(resolution / 2.0, 2));  // two-sigma
+  this->param("max_horizontal_variance", map_->maxHorizontalVariance_, 0.5);
+  this->param("underlying_map_topic", map_->underlyingMapTopic_, std::string());
+  this->param("enable_visibility_cleanup", map_->enableVisibilityCleanup_, true);
+  this->param("enable_continuous_cleanup", map_->enableContinuousCleanup_, false);
+  this->param("scanning_duration", map_->scanningDuration_, 1.0);
+  this->param("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_, std::string("mask"));
 
   // Settings for initializing elevation map
-  node_->param("initialize_elevation_map", initializeElevationMap_, false);
-  node_->param("initialization_method", initializationMethod_, 0);
-  node_->param("length_in_x_init_submap", lengthInXInitSubmap_, 1.2);
-  node_->param("length_in_y_init_submap", lengthInYInitSubmap_, 1.8);
-  node_->param("margin_init_submap", marginInitSubmap_, 0.3);
-  node_->param("init_submap_height_offset", initSubmapHeightOffset_, 0.0);
-  node_->param("target_frame_init_submap", targetFrameInitSubmap_, std::string("/footprint"));
+  this->param("initialize_elevation_map", initializeElevationMap_, false);
+  this->param("initialization_method", initializationMethod_, 0);
+  this->param("length_in_x_init_submap", lengthInXInitSubmap_, 1.2);
+  this->param("length_in_y_init_submap", lengthInYInitSubmap_, 1.8);
+  this->param("margin_init_submap", marginInitSubmap_, 0.3);
+  this->param("init_submap_height_offset", initSubmapHeightOffset_, 0.0);
+  this->param("target_frame_init_submap", targetFrameInitSubmap_, std::string("/footprint"));
 
   if (!robotMotionMapUpdater_->readParameters()) {
     return false;
@@ -282,7 +282,7 @@ bool ElevationMapping::initialize() {
 void ElevationMapping::runFusionServiceThread() {
   rclcpp::Rate loopRate(20);
 
-  while (node_->ok()) {
+  while (this->ok()) {
     fusionServiceQueue_.callAvailable();
 
     // Sleep until the next execution.
@@ -293,7 +293,7 @@ void ElevationMapping::runFusionServiceThread() {
 void ElevationMapping::visibilityCleanupThread() {
   rclcpp::Rate loopRate(20);
 
-  while (node_->ok()) {
+  while (this->ok()) {
     visibilityCleanupQueue_.callAvailable();
 
     // Sleep until the next execution.
@@ -722,9 +722,9 @@ bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::R
   RCLCPP_INFO(this->get_logger(), "Saving map to file.");
   boost::recursive_mutex::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
-  std::string topic = node_->getNamespace() + "/elevation_map";
+  std::string topic = this->getNamespace() + "/elevation_map";
   if (!request.topic_name.empty()) {
-    topic = node_->getNamespace() + "/" + request.topic_name;
+    topic = this->getNamespace() + "/" + request.topic_name;
   }
   response.success = static_cast<unsigned char>(grid_map::GridMapRosConverter::saveToBag(map_->getFusedGridMap(), request.file_path, topic));
   response.success = static_cast<unsigned char>(
@@ -739,7 +739,7 @@ bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::R
   boost::recursive_mutex::scoped_lock scopedLockFused(map_->getFusedDataMutex());
   boost::recursive_mutex::scoped_lock scopedLockRaw(map_->getRawDataMutex());
 
-  std::string topic = node_->getNamespace();
+  std::string topic = this->getNamespace();
   if (!request.topic_name.empty()) {
     topic += "/" + request.topic_name;
   } else {
