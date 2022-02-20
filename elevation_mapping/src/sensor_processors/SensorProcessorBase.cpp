@@ -31,13 +31,14 @@
 
 namespace elevation_mapping {
 
-SensorProcessorBase::SensorProcessorBase(rclcpp::NodeHandle& nodeHandle, const GeneralParameters& generalConfig)
-    : nodeHandle_(nodeHandle),
-      transformListener_(transformBuffer_),
+      // transformListener_(transformBuffer_),
       ignorePointsUpperThreshold_(std::numeric_limits<double>::infinity()),
       ignorePointsLowerThreshold_(-std::numeric_limits<double>::infinity()),
       applyVoxelGridFilter_(false),
       firstTfAvailable_(false) {
+  transformBuffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+  transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
+        
   pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
   transformationSensorToMap_.setIdentity();
   generalParameters_ = generalConfig;
@@ -96,10 +97,10 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
   try {
 
     geometry_msgs::msg::TransformStamped transformGeom;
-    transformGeom = transformBuffer_.lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp, rclcpp::Duration(1.0));
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp, rclcpp::Duration(1.0));
     transformationSensorToMap_ = tf2::transformToEigen(transformGeom);
 
-    transformGeom = transformBuffer_.lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
                                                       rclcpp::Duration(1.0));  // TODO(max): Why wrong direction?
     Eigen::Quaterniond rotationQuaternion;
     tf2::fromMsg(transformGeom.transform.rotation, rotationQuaternion);
@@ -108,7 +109,7 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
     tf2::fromMsg(transformGeom.transform.translation, translationVector);
     translationBaseToSensorInBaseFrame_.toImplementation() = translationVector;
 
-    transformGeom = transformBuffer_.lookupTransform(generalParameters_.mapFrameId_, generalParameters_.robotBaseFrameId_,
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, generalParameters_.robotBaseFrameId_,
                                                     timeStamp, rclcpp::Duration(1.0));  // TODO(max): Why wrong direction?
     tf2::fromMsg(transformGeom.transform.rotation, rotationQuaternion);
     rotationMapToBase_.setMatrix(rotationQuaternion.toRotationMatrix());
@@ -137,7 +138,7 @@ bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointClou
 
   try {
     geometry_msgs::msg::TransformStamped transformGeom;
-    transformGeom = transformBuffer_.lookupTransform(targetFrame, inputFrameId, timeStamp, rclcpp::Duration(1.0));  // FIXME: missing 0.001 retry duration
+    transformGeom = transformBuffer_->lookupTransform(targetFrame, inputFrameId, timeStamp, rclcpp::Duration(1.0));  // FIXME: missing 0.001 retry duration
     Eigen::Affine3d transform = tf2::transformToEigen(transformGeom);
     pcl::transformPointCloud(*pointCloud, *pointCloudTransformed, transform.cast<float>());
     pointCloudTransformed->header.frame_id = targetFrame;

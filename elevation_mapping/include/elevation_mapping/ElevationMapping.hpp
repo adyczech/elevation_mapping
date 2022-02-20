@@ -293,8 +293,8 @@ class ElevationMapping {
   std::string mapFrameId_;
 
   //! TF listener and buffer.
-  tf2_ros::Buffer transformBuffer_;
-  tf2_ros::TransformListener transformListener_;
+  std::shared_ptr<tf2_ros::Buffer> transformBuffer_;
+  std::shared_ptr<tf2_ros::TransformListener> transformListener_;
 
   //! Point which the elevation map follows.
   kindr::Position3D trackPoint_;

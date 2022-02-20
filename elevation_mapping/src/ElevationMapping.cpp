@@ -35,13 +35,11 @@
 
 namespace elevation_mapping {
 
-ElevationMapping::ElevationMapping(rclcpp::NodeHandle& nodeHandle)
-    : nodeHandle_(nodeHandle),
-      inputSources_(nodeHandle_),
+      // inputSources_(node_),
       robotPoseCacheSize_(200),
-      transformListener_(transformBuffer_),
-      map_(nodeHandle),
-      robotMotionMapUpdater_(nodeHandle),
+      // transformListener_(transformBuffer_),
+      // map_(node_),
+      // robotMotionMapUpdater_(node_),
       ignoreRobotMotionUpdates_(false),
       updatesEnabled_(true),
       isContinuouslyFusing_(false),
@@ -57,7 +55,9 @@ ElevationMapping::ElevationMapping(rclcpp::NodeHandle& nodeHandle)
   RCLCPP_WARN(node_->get_logger(), "CMake Build Type is 'Debug'. Change to 'Release' for better performance.");
 #endif
 
-  RCLCPP_INFO(node_->get_logger(), "Elevation mapping node started.");
+  // Initialize the tf buffer here to give it a head start
+  transformBuffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
 
   readParameters();
   setupSubscribers();
@@ -556,7 +556,7 @@ bool ElevationMapping::updateMapLocation() {
   geometry_msgs::msg::PointStamped trackPointTransformed;
 
   try {
-    trackPointTransformed = transformBuffer_.transform(trackPoint, map_.getFrameId());
+    trackPointTransformed = transformBuffer_->.transform(trackPoint, map_.getFrameId());
   } catch (tf2::TransformException& ex) {
     RCLCPP_ERROR(node_->get_logger(), "%s", ex.what());
     return false;
@@ -643,7 +643,7 @@ bool ElevationMapping::initializeElevationMap() {
 
       // Listen to transform between mapFrameId_ and targetFrameInitSubmap_ and use z value for initialization
       try {
-        transform_msg = transformBuffer_.lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration(5.0));
+        transform_msg = transformBuffer_->.lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration(5.0));
         tf2::fromMsg(transform_msg, transform);
 
         RCLCPP_DEBUG_STREAM(node_->get_logger(), "Initializing with x: " << transform.getOrigin().x() << " y: " << transform.getOrigin().y()
