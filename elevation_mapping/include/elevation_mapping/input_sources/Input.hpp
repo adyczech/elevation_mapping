@@ -62,7 +62,7 @@ class Input {
   /**
    * @return The type of this input source.
    */
-  std::string getType() { return type_; }
+  std::string getType() { return dataType_; }
 
  private:
   /**
@@ -85,7 +85,7 @@ class Input {
 
   // Parameters.
   std::string name_;
-  std::string type_;
+  std::string dataType_;
   uint32_t queueSize_;
   std::string topic_;
   bool publishOnUpdate_;
@@ -95,7 +95,7 @@ template <typename MsgT>
 void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
   subscriber_ = node_->create_subscription<MsgT>(
       topic_, default_qos(queueSize_), std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
-  RCLCPP_INFO(node_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", type_.c_str(), topic_.c_str(), queueSize_);
+  RCLCPP_INFO(node_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", dataType_.c_str(), topic_.c_str(), queueSize_);
 }
 
 }  // namespace elevation_mapping

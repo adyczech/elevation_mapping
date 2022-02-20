@@ -49,7 +49,7 @@ bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
   }
 
   name_ = name;
-  type_ = static_cast<std::string>(parameters["type"]);
+  dataType_ = static_cast<std::string>(parameters["type"]);
   topic_ = static_cast<std::string>(parameters["topic"]);
   const int& queueSize = static_cast<int>(parameters["queue_size"]);
   if (queueSize >= 0) {
@@ -65,7 +65,7 @@ bool Input::configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
     return false;
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "Configured %s:%s @ %s (publishing_on_update: %s), using %s to process data.\n", type_.c_str(), name_.c_str(),
+  RCLCPP_DEBUG(node_->get_logger(), "Configured %s:%s @ %s (publishing_on_update: %s), using %s to process data.\n", dataType_.c_str(), name_.c_str(),
             node_->resolveName(topic_).c_str(), publishOnUpdate_ ? "true" : "false",
             static_cast<std::string>(parameters["sensor_processor"]["type"]).c_str());
   return true;
