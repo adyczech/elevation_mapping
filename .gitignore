@@ -27,3 +27,6 @@
 
 # Sublime
 *.sublime*
+
+# VSCode
+.vscode
