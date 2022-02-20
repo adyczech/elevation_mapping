@@ -1,13 +1,16 @@
 <?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
   <name>elevation_mapping</name>
   <version>0.7.6</version>
   <description>Generates an elevation map from distance measurements and robot pose information.</description>
   <maintainer email="mwulf@anybotics.com">Maximilian Wulf</maintainer>
   <maintainer email="mgaertner@anybotics.com">Magnus Gaertner</maintainer>
+
   <license>BSD</license>
   <url type="website">http://github.com/anybotics/elevation_mapping</url>
   <url type="bugtracker">http://github.com/anybotics/elevation_mapping/issues</url>
+
   <author email="pfankhauser@anybotics.com">Péter Fankhauser</author>
 
   <buildtool_depend>catkin</buildtool_depend>
@@ -23,10 +26,12 @@
   <depend>kindr</depend>
   <depend>kindr_ros</depend>
   <depend>message_filters</depend>
-  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_eigen</depend>

@@ -15,10 +15,12 @@ set(
     kindr
     kindr_ros
     message_filters
-    pcl_ros
+    pcl_conversions
     roscpp
     sensor_msgs
+    geometry_msgs
     std_msgs
+    std_srvs
     tf2
     tf2_ros
     tf2_eigen
