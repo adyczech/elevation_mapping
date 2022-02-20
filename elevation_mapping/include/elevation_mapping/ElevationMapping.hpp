@@ -63,8 +63,8 @@ class ElevationMapping : public rclcpp::Node {
    * @param publishPointCloud If true, publishes the pointcloud after updating the map.
    * @param sensorProcessor The sensorProcessor to use in this callback.
    */
-  void pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
-                          const SensorProcessorBase::Ptr& sensorProcessor);
+  void pointCloudCallback(const sensor_msgs::msg::PointCloud2::UniquePtr pointCloudMsg, bool publishPointCloud,
+                          const SensorProcessorBase::UniquePtr& sensorProcessor);
 
   /*!
    * Callback function for the update timer. Forces an update of the map from

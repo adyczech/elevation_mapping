@@ -293,8 +293,8 @@ bool ElevationMapping::initialize() {
   return true;
 }
 
-void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
-                                          const SensorProcessorBase::Ptr& sensorProcessor) {
+void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2::UniquePtr pointCloudMsg, bool publishPointCloud,
+                                          const SensorProcessorBase::UniquePtr& sensorProcessor) {
   RCLCPP_DEBUG(this->get_logger(), "Processing data from: %s", pointCloudMsg->header.frame_id.c_str());
   if (!updatesEnabled_) {
     RCLCPP_WARN_THROTTLE(

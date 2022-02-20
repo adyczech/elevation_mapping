@@ -25,7 +25,7 @@ class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
 class Input {
  public:
   template <typename MsgT>
-  using CallbackT = void (ElevationMapping::*)(const std::shared_ptr<const MsgT>&, bool, const SensorProcessorBase::Ptr&);
+  using CallbackT = void (ElevationMapping::*)(const std::shared_ptr<const MsgT>&, bool, const SensorProcessorBase::UniquePtr&);
 
   /**
    * @brief Constructor.
@@ -81,7 +81,7 @@ class Input {
   rclcpp::Node::SharedPtr node_;
 
   //! Sensor processor
-  SensorProcessorBase::Ptr sensorProcessor_;
+  SensorProcessorBase::UniquePtr sensorProcessor_;
 
   // Parameters.
   std::string name_;
