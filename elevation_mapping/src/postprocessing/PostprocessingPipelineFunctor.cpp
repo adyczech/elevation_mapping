@@ -19,7 +19,7 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(ros::NodeHandle& no
   // TODO (magnus) Add logic when setting up failed. What happens actually if it is not configured?
   readParameters();
 
-  publisher_ = nodeHandle_.advertise<grid_map_msgs::GridMap>(outputTopic_, 1, true);
+  publisher_ = nodeHandle_.advertise<grid_map_msgs::msg::GridMap>(outputTopic_, 1, true);
 
   // Setup filter chain.
   if (!nodeHandle.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, nodeHandle)) {
@@ -54,7 +54,7 @@ grid_map::GridMap PostprocessingPipelineFunctor::operator()(GridMap& inputMap) {
 
 void PostprocessingPipelineFunctor::publish(const GridMap& gridMap) const {
   // Publish filtered output grid map.
-  grid_map_msgs::GridMap outputMessage;
+  grid_map_msgs::msg::GridMap outputMessage;
   grid_map::GridMapRosConverter::toMessage(gridMap, outputMessage);
   publisher_.publish(outputMessage);
   ROS_DEBUG("Elevation map raw has been published.");

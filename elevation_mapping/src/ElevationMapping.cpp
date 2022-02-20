@@ -9,7 +9,7 @@
 #include <cmath>
 #include <string>
 
-#include <grid_map_msgs/GridMap.h>
+#include <grid_map_msgs/msg/grid_map.hpp>
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/conversions.h>
 #include <pcl/filters/voxel_grid.h>
@@ -20,8 +20,8 @@
 #include <grid_map_ros/grid_map_ros.hpp>
 #include <kindr/Core>
 #include <kindr_ros/kindr_ros.hpp>
-#include <geometry_msgs/TransformStamped.h>
-#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
@@ -76,7 +76,7 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
     ROS_WARN("Parameter 'point_cloud_topic' is deprecated, please use 'input_sources' instead.");
   }
   if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
-    pointCloudSubscriber_ = nodeHandle_.subscribe<sensor_msgs::PointCloud2>(
+    pointCloudSubscriber_ = nodeHandle_.subscribe<sensor_msgs::msg::PointCloud2>(
         pointCloudTopic_, 1,
         std::bind(&ElevationMapping::pointCloudCallback, this, std::placeholders::_1, true, std::ref(sensorProcessor_)));
   }
@@ -95,16 +95,16 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
 
 void ElevationMapping::setupServices() {
   // Multi-threading for fusion.
-  ros::AdvertiseServiceOptions advertiseServiceOptionsForTriggerFusion = ros::AdvertiseServiceOptions::create<std_srvs::Empty>(
+  ros::AdvertiseServiceOptions advertiseServiceOptionsForTriggerFusion = ros::AdvertiseServiceOptions::create<std_srvs::srv::Empty>(
       "trigger_fusion", boost::bind(&ElevationMapping::fuseEntireMapServiceCallback, this, _1, _2), ros::VoidConstPtr(),
       &fusionServiceQueue_);
   fusionTriggerService_ = nodeHandle_.advertiseService(advertiseServiceOptionsForTriggerFusion);
 
-  ros::AdvertiseServiceOptions advertiseServiceOptionsForGetFusedSubmap = ros::AdvertiseServiceOptions::create<grid_map_msgs::GetGridMap>(
+  ros::AdvertiseServiceOptions advertiseServiceOptionsForGetFusedSubmap = ros::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
       "get_submap", boost::bind(&ElevationMapping::getFusedSubmapServiceCallback, this, _1, _2), ros::VoidConstPtr(), &fusionServiceQueue_);
   fusedSubmapService_ = nodeHandle_.advertiseService(advertiseServiceOptionsForGetFusedSubmap);
 
-  ros::AdvertiseServiceOptions advertiseServiceOptionsForGetRawSubmap = ros::AdvertiseServiceOptions::create<grid_map_msgs::GetGridMap>(
+  ros::AdvertiseServiceOptions advertiseServiceOptionsForGetRawSubmap = ros::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
       "get_raw_submap", boost::bind(&ElevationMapping::getRawSubmapServiceCallback, this, _1, _2), ros::VoidConstPtr(),
       &fusionServiceQueue_);
   rawSubmapService_ = nodeHandle_.advertiseService(advertiseServiceOptionsForGetRawSubmap);
@@ -313,7 +313,7 @@ void ElevationMapping::visibilityCleanupThread() {
   }
 }
 
-void ElevationMapping::pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
+void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
                                           const SensorProcessorBase::Ptr& sensorProcessor_) {
   ROS_DEBUG("Processing data from: %s", pointCloudMsg->header.frame_id.c_str());
   if (!updatesEnabled_) {
@@ -356,7 +356,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr
   Eigen::Matrix<double, 6, 6> robotPoseCovariance;
   robotPoseCovariance.setZero();
   if (!ignoreRobotMotionUpdates_) {
-    boost::shared_ptr<geometry_msgs::PoseWithCovarianceStamped const> poseMessage =
+    boost::shared_ptr<geometry_msgs::msg::PoseWithCovarianceStamped const> poseMessage =
         robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTime_);
     if (!poseMessage) {
       // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
@@ -474,7 +474,7 @@ void ElevationMapping::visibilityCleanupCallback(const ros::TimerEvent&) {
   map_.visibilityCleanup(ros::Time(lastPointCloudUpdateTime_));
 }
 
-bool ElevationMapping::fuseEntireMapServiceCallback(std_srvs::Empty::Request&, std_srvs::Empty::Response&) {
+bool ElevationMapping::fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request&, std_srvs::srv::Empty::Response&) {
   boost::recursive_mutex::scoped_lock scopedLock(map_.getFusedDataMutex());
   map_.fuseAll();
   map_.publishFusedElevationMap();
@@ -502,7 +502,7 @@ bool ElevationMapping::updatePrediction(const ros::Time& time) {
   }
 
   // Get robot pose at requested time.
-  boost::shared_ptr<geometry_msgs::PoseWithCovarianceStamped const> poseMessage = robotPoseCache_.getElemBeforeTime(time);
+  boost::shared_ptr<geometry_msgs::msg::PoseWithCovarianceStamped const> poseMessage = robotPoseCache_.getElemBeforeTime(time);
   if (!poseMessage) {
     // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
     if (robotPoseCache_.getOldestTime().toSec() > lastPointCloudUpdateTime_.toSec()) {
@@ -529,11 +529,11 @@ bool ElevationMapping::updatePrediction(const ros::Time& time) {
 bool ElevationMapping::updateMapLocation() {
   ROS_DEBUG("Elevation map is checked for relocalization.");
 
-  geometry_msgs::PointStamped trackPoint;
+  geometry_msgs::msg::PointStamped trackPoint;
   trackPoint.header.frame_id = trackPointFrameId_;
   trackPoint.header.stamp = ros::Time(0);
   kindr_ros::convertToRosGeometryMsg(trackPoint_, trackPoint.point);
-  geometry_msgs::PointStamped trackPointTransformed;
+  geometry_msgs::msg::PointStamped trackPointTransformed;
 
   try {
     trackPointTransformed = transformBuffer_.transform(trackPoint, map_.getFrameId());
@@ -549,8 +549,8 @@ bool ElevationMapping::updateMapLocation() {
   return true;
 }
 
-bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::GetGridMap::Request& request,
-                                                     grid_map_msgs::GetGridMap::Response& response) {
+bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request,
+                                                     grid_map_msgs::srv::GetGridMap::Response& response) {
   grid_map::Position requestedSubmapPosition(request.position_x, request.position_y);
   grid_map::Length requestedSubmapLength(request.length_x, request.length_y);
   ROS_DEBUG("Elevation submap request: Position x=%f, y=%f, Length x=%f, y=%f.", requestedSubmapPosition.x(), requestedSubmapPosition.y(),
@@ -577,8 +577,8 @@ bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::GetGridMap::
   return isSuccess;
 }
 
-bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::GetGridMap::Request& request,
-                                                   grid_map_msgs::GetGridMap::Response& response) {
+bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request,
+                                                   grid_map_msgs::srv::GetGridMap::Response& response) {
   grid_map::Position requestedSubmapPosition(request.position_x, request.position_y);
   grid_map::Length requestedSubmapLength(request.length_x, request.length_y);
   ROS_DEBUG("Elevation raw submap request: Position x=%f, y=%f, Length x=%f, y=%f.", requestedSubmapPosition.x(),
@@ -602,13 +602,13 @@ bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::GetGridMap::Re
   return isSuccess;
 }
 
-bool ElevationMapping::disableUpdatesServiceCallback(std_srvs::Empty::Request& /*request*/, std_srvs::Empty::Response& /*response*/) {
+bool ElevationMapping::disableUpdatesServiceCallback(std_srvs::srv::Empty::Request& /*request*/, std_srvs::srv::Empty::Response& /*response*/) {
   ROS_INFO("Disabling updates.");
   updatesEnabled_ = false;
   return true;
 }
 
-bool ElevationMapping::enableUpdatesServiceCallback(std_srvs::Empty::Request& /*request*/, std_srvs::Empty::Response& /*response*/) {
+bool ElevationMapping::enableUpdatesServiceCallback(std_srvs::srv::Empty::Request& /*request*/, std_srvs::srv::Empty::Response& /*response*/) {
   ROS_INFO("Enabling updates.");
   updatesEnabled_ = true;
   return true;
@@ -618,7 +618,7 @@ bool ElevationMapping::initializeElevationMap() {
   if (initializeElevationMap_) {
     if (static_cast<elevation_mapping::InitializationMethods>(initializationMethod_) ==
         elevation_mapping::InitializationMethods::PlanarFloorInitializer) {
-      geometry_msgs::TransformStamped transform_msg;
+      geometry_msgs::msg::TransformStamped transform_msg;
       tf2::Stamped<tf2::Transform> transform;
 
       // Listen to transform between mapFrameId_ and targetFrameInitSubmap_ and use z value for initialization
@@ -648,7 +648,7 @@ bool ElevationMapping::initializeElevationMap() {
   return true;
 }
 
-bool ElevationMapping::clearMapServiceCallback(std_srvs::Empty::Request& /*request*/, std_srvs::Empty::Response& /*response*/) {
+bool ElevationMapping::clearMapServiceCallback(std_srvs::srv::Empty::Request& /*request*/, std_srvs::srv::Empty::Response& /*response*/) {
   ROS_INFO("Clearing map...");
   bool success = map_.clear();
   success &= initializeElevationMap();
@@ -657,8 +657,8 @@ bool ElevationMapping::clearMapServiceCallback(std_srvs::Empty::Request& /*reque
   return success;
 }
 
-bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::SetGridMap::Request& request,
-                                                    grid_map_msgs::SetGridMap::Response& /*response*/) {
+bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request& request,
+                                                    grid_map_msgs::srv::SetGridMap::Response& /*response*/) {
   ROS_INFO("Masked replacing of map.");
   grid_map::GridMap sourceMap;
   grid_map::GridMapRosConverter::fromMessage(request.map, sourceMap);
@@ -709,8 +709,8 @@ bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::SetGridMap::R
   return true;
 }
 
-bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::ProcessFile::Request& request,
-                                              grid_map_msgs::ProcessFile::Response& response) {
+bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request,
+                                              grid_map_msgs::srv::ProcessFile::Response& response) {
   ROS_INFO("Saving map to file.");
   boost::recursive_mutex::scoped_lock scopedLock(map_.getFusedDataMutex());
   map_.fuseAll();
@@ -725,8 +725,8 @@ bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::ProcessFile::Reques
   return static_cast<bool>(response.success);
 }
 
-bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::ProcessFile::Request& request,
-                                              grid_map_msgs::ProcessFile::Response& response) {
+bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request,
+                                              grid_map_msgs::srv::ProcessFile::Response& response) {
   ROS_WARN("Loading from bag file.");
   boost::recursive_mutex::scoped_lock scopedLockFused(map_.getFusedDataMutex());
   boost::recursive_mutex::scoped_lock scopedLockRaw(map_.getRawDataMutex());

@@ -9,7 +9,7 @@
 #include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
 
 // ROS
-#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 
 // PCL
 #include <pcl/common/io.h>
@@ -95,7 +95,7 @@ bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput
 bool SensorProcessorBase::updateTransformations(const ros::Time& timeStamp) {
   try {
 
-    geometry_msgs::TransformStamped transformGeom;
+    geometry_msgs::msg::TransformStamped transformGeom;
     transformGeom = transformBuffer_.lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp, ros::Duration(1.0));
     transformationSensorToMap_ = tf2::transformToEigen(transformGeom);
 
@@ -136,7 +136,7 @@ bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointClou
   const std::string inputFrameId(pointCloud->header.frame_id);
 
   try {
-    geometry_msgs::TransformStamped transformGeom;
+    geometry_msgs::msg::TransformStamped transformGeom;
     transformGeom = transformBuffer_.lookupTransform(targetFrame, inputFrameId, timeStamp, ros::Duration(1.0));  // FIXME: missing 0.001 retry duration
     Eigen::Affine3d transform = tf2::transformToEigen(transformGeom);
     pcl::transformPointCloud(*pointCloud, *pointCloudTransformed, transform.cast<float>());

@@ -228,7 +228,7 @@ class ElevationMap {
    * Updates the internal underlying map.
    * @param underlyingMap the underlying map.
    */
-  void underlyingMapCallback(const grid_map_msgs::GridMap& underlyingMap);
+  void underlyingMapCallback(const grid_map_msgs::msg::GridMap& underlyingMap);
 
   /*!
    * Method to set the height value around the center of the robot, can be used for initialization.

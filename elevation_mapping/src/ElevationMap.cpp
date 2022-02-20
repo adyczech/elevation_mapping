@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstring>
 
-#include <grid_map_msgs/GridMap.h>
+#include <grid_map_msgs/msg/grid_map.hpp>
 #include <ros/ros.h>
 #include <Eigen/Dense>
 
@@ -54,12 +54,12 @@ ElevationMap::ElevationMap(ros::NodeHandle nodeHandle)
   fusedMap_.setBasicLayers({"elevation", "upper_bound", "lower_bound"});
   clear();
 
-  elevationMapFusedPublisher_ = nodeHandle_.advertise<grid_map_msgs::GridMap>("elevation_map", 1);
+  elevationMapFusedPublisher_ = nodeHandle_.advertise<grid_map_msgs::msg::GridMap>("elevation_map", 1);
   if (!underlyingMapTopic_.empty()) {
     underlyingMapSubscriber_ = nodeHandle_.subscribe(underlyingMapTopic_, 1, &ElevationMap::underlyingMapCallback, this);
   }
   // TODO(max): if (enableVisibilityCleanup_) when parameter cleanup is ready.
-  visibilityCleanupMapPublisher_ = nodeHandle_.advertise<grid_map_msgs::GridMap>("visibility_cleanup_map", 1);
+  visibilityCleanupMapPublisher_ = nodeHandle_.advertise<grid_map_msgs::msg::GridMap>("visibility_cleanup_map", 1);
 
   initialTime_ = ros::Time::now();
 }
@@ -563,7 +563,7 @@ bool ElevationMap::publishFusedElevationMap() {
   grid_map::GridMap fusedMapCopy = fusedMap_;
   scopedLock.unlock();
   fusedMapCopy.add("uncertainty_range", fusedMapCopy.get("upper_bound") - fusedMapCopy.get("lower_bound"));
-  grid_map_msgs::GridMap message;
+  grid_map_msgs::msg::GridMap message;
   grid_map::GridMapRosConverter::toMessage(fusedMapCopy, message);
   elevationMapFusedPublisher_.publish(message);
   ROS_DEBUG("Elevation map (fused) has been published.");
@@ -584,7 +584,7 @@ bool ElevationMap::publishVisibilityCleanupMap() {
   visibilityCleanupMapCopy.erase("horizontal_variance_xy");
   visibilityCleanupMapCopy.erase("color");
   visibilityCleanupMapCopy.erase("time");
-  grid_map_msgs::GridMap message;
+  grid_map_msgs::msg::GridMap message;
   grid_map::GridMapRosConverter::toMessage(visibilityCleanupMapCopy, message);
   visibilityCleanupMapPublisher_.publish(message);
   ROS_DEBUG("Visibility cleanup map has been published.");
@@ -677,7 +677,7 @@ bool ElevationMap::hasFusedMapSubscribers() const {
   return elevationMapFusedPublisher_.getNumSubscribers() >= 1;
 }
 
-void ElevationMap::underlyingMapCallback(const grid_map_msgs::GridMap& underlyingMap) {
+void ElevationMap::underlyingMapCallback(const grid_map_msgs::msg::GridMap& underlyingMap) {
   ROS_INFO("Updating underlying map.");
   grid_map::GridMapRosConverter::fromMessage(underlyingMap, underlyingMap_);
   if (underlyingMap_.getFrameId() != rawMap_.getFrameId()) {

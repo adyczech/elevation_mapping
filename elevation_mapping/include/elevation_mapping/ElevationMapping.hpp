@@ -9,17 +9,17 @@
 #pragma once
 
 // Grid Map
-#include <grid_map_msgs/GetGridMap.h>
-#include <grid_map_msgs/ProcessFile.h>
-#include <grid_map_msgs/SetGridMap.h>
+#include <grid_map_msgs/srv/get_grid_map.hpp>
+#include <grid_map_msgs/srv/process_file.hpp>
+#include <grid_map_msgs/srv/set_grid_map.hpp>
 
 // ROS
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <std_srvs/Empty.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <std_srvs/srv/empty.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -67,7 +67,7 @@ class ElevationMapping {
    * @param publishPointCloud If true, publishes the pointcloud after updating the map.
    * @param sensorProcessor_ The sensorProcessor to use in this callback.
    */
-  void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
+  void pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
                           const SensorProcessorBase::Ptr& sensorProcessor_);
 
   /*!
@@ -102,7 +102,7 @@ class ElevationMapping {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool fuseEntireMapServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+  bool fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
 
   /*!
    * ROS service callback function to return a submap of the fused elevation map.
@@ -111,7 +111,7 @@ class ElevationMapping {
    * @param response    The ROS service response containing the requested fused submap.
    * @return true if successful.
    */
-  bool getFusedSubmapServiceCallback(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response);
+  bool getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request, grid_map_msgs::srv::GetGridMap::Response& response);
 
   /*!
    * ROS service callback function to return a submap of the raw elevation map.
@@ -120,7 +120,7 @@ class ElevationMapping {
    * @param response    The ROS service response containing the requested raw submap.
    * @return true if successful.
    */
-  bool getRawSubmapServiceCallback(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response);
+  bool getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request& request, grid_map_msgs::srv::GetGridMap::Response& response);
 
   /*!
    * ROS service callback function to enable updates of the elevation map.
@@ -129,7 +129,7 @@ class ElevationMapping {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool enableUpdatesServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+  bool enableUpdatesServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
 
   /*!
    * ROS service callback function to disable updates of the elevation map.
@@ -138,7 +138,7 @@ class ElevationMapping {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool disableUpdatesServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+  bool disableUpdatesServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
 
   /*!
    * ROS service callback function to clear all data of the elevation map.
@@ -147,7 +147,7 @@ class ElevationMapping {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool clearMapServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+  bool clearMapServiceCallback(std_srvs::srv::Empty::Request& request, std_srvs::srv::Empty::Response& response);
 
   /*!
    * ROS service callback function to allow for setting the individual layers of the elevation map through a service call.
@@ -160,7 +160,7 @@ class ElevationMapping {
    * @param response   The ROS service response.
    * @return true if successful.
    */
-  bool maskedReplaceServiceCallback(grid_map_msgs::SetGridMap::Request& request, grid_map_msgs::SetGridMap::Response& response);
+  bool maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request& request, grid_map_msgs::srv::SetGridMap::Response& response);
 
   /*!
    * ROS service callback function to save the grid map with all layers to a ROS bag file.
@@ -169,7 +169,7 @@ class ElevationMapping {
    * @param response  The ROS service response.
    * @return true if successful.
    */
-  bool saveMapServiceCallback(grid_map_msgs::ProcessFile::Request& request, grid_map_msgs::ProcessFile::Response& response);
+  bool saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request, grid_map_msgs::srv::ProcessFile::Response& response);
 
   /*!
    * ROS service callback function to load the grid map with all layers from a ROS bag file.
@@ -178,7 +178,7 @@ class ElevationMapping {
    * @param response    The ROS service response.
    * @return true if successful.
    */
-  bool loadMapServiceCallback(grid_map_msgs::ProcessFile::Request& request, grid_map_msgs::ProcessFile::Response& response);
+  bool loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request, grid_map_msgs::srv::ProcessFile::Response& response);
 
  private:
   /*!
@@ -264,7 +264,7 @@ class ElevationMapping {
   InputSourceManager inputSources_;
   //! ROS subscribers.
   ros::Subscriber pointCloudSubscriber_;  //!< Deprecated, use input_source instead.
-  message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> robotPoseSubscriber_;
+  message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
 
   //! ROS service servers.
   ros::ServiceServer fusionTriggerService_;
@@ -284,7 +284,7 @@ class ElevationMapping {
   ros::CallbackQueue fusionServiceQueue_;
 
   //! Cache for the robot pose messages.
-  message_filters::Cache<geometry_msgs::PoseWithCovarianceStamped> robotPoseCache_;
+  message_filters::Cache<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseCache_;
 
   //! Size of the cache for the robot pose messages.
   int robotPoseCacheSize_;

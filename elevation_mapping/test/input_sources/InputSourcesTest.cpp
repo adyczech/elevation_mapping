@@ -108,8 +108,8 @@ TEST(InputSources, ListeningToTopicsAfterRegistration) {  // NOLINT
 
   // Publish to the topics we expect map to subscribe.
   ros::NodeHandle nh("");
-  ros::Publisher firstLidarPublisher = nh.advertise<sensor_msgs::PointCloud2>("/lidar_1/depth/points", 1, false);
-  ros::Publisher secondLidarPublisher = nh.advertise<sensor_msgs::PointCloud2>("/lidar_2/depth/points", 1, false);
+  ros::Publisher firstLidarPublisher = nh.advertise<sensor_msgs::msg::PointCloud2>("/lidar_1/depth/points", 1, false);
+  ros::Publisher secondLidarPublisher = nh.advertise<sensor_msgs::msg::PointCloud2>("/lidar_2/depth/points", 1, false);
 
   // Check if we have exactly one subscriber per topic.
   ASSERT_EQ(firstLidarPublisher.getNumSubscribers(), 1);
