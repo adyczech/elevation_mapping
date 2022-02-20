@@ -1,73 +1,43 @@
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.10)
 project(elevation_mapping)
 
-set(CMAKE_CXX_STANDARD 14)
-add_compile_options(-Wall -Wextra -Wpedantic)
+# Use C++17 standard
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(
-  CATKIN_PACKAGE_DEPENDENCIES
-    eigen_conversions
-    grid_map_core
-    grid_map_ros
-    grid_map_msgs
-    kindr
-    kindr_ros
-    message_filters
-    pcl_conversions
-    roscpp
-    sensor_msgs
-    geometry_msgs
-    std_msgs
-    std_srvs
-    tf2
-    tf2_ros
-    tf2_eigen
-    tf2_geometry_msgs
-)
-
-find_package(catkin REQUIRED
-  COMPONENTS
-    ${CATKIN_PACKAGE_DEPENDENCIES}
-)
-
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(ament_cmake_auto REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(PCL REQUIRED)
+# find_package(kindr_ros REQUIRED)
 
-catkin_package(
-  INCLUDE_DIRS
-    include
-    ${Eigen_INCLUDE_DIRS}
-  LIBRARIES
-    ${PROJECT_NAME}_library
-  CATKIN_DEPENDS
-    ${CATKIN_PACKAGE_DEPENDENCIES}
-  DEPENDS
-    Boost
-)
+ament_auto_find_build_dependencies()
 
 include_directories(
   include
-  SYSTEM
-    ${Boost_INCLUDE_DIRS}
-    ${catkin_INCLUDE_DIRS}
-    ${Eigen_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  # ${KINDR_ROS_INCLUDE_DIRS}
 )
 
-###########
-# Library #
-###########
+link_directories(
+  ${PCL_LIBRARY_DIRS}
+  ${EIGEN3_LIBRARY_DIRS}
+)
+
+add_definitions(${PCL_DEFINITIONS})
 
 # Our custom pcl type with precompiled template instantiations.
-add_library(${PROJECT_NAME}_pcl_types
+ament_auto_add_library(${PROJECT_NAME}_pcl_types
   src/PointXYZRGBConfidenceRatio.cpp
 )
-target_link_libraries(${PROJECT_NAME}_pcl_types
-  ${catkin_LIBRARIES}
-)
 
-add_library(${PROJECT_NAME}_library
+ament_auto_add_library(${PROJECT_NAME}
   src/ElevationMapping.cpp
   src/ElevationMap.cpp
   src/input_sources/Input.cpp
@@ -83,151 +53,48 @@ add_library(${PROJECT_NAME}_library
   src/sensor_processors/PerfectSensorProcessor.cpp
 )
 
-target_link_libraries(${PROJECT_NAME}_library
-  ${catkin_LIBRARIES}
-  ${PROJECT_NAME}_pcl_types
-  pthread
-)
-
-##############
-# Executable #
-##############
-
-add_executable(${PROJECT_NAME}
-  src/elevation_mapping_node.cpp
-)
-
 target_link_libraries(${PROJECT_NAME}
-  ${PROJECT_NAME}_library
-)
+ ${PCL_LIBRARIES})
+#  ${PROJECT_NAME}_pcl_types
 
-#############
-## Install ##
-#############
+ament_auto_add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp)
 
-install(
-  TARGETS
-    ${PROJECT_NAME}
-    ${PROJECT_NAME}_pcl_types
-    ${PROJECT_NAME}_library
-  ARCHIVE DESTINATION
-    ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION
-    ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION
-    ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+target_link_libraries(${PROJECT_NAME}_node
+  ${PROJECT_NAME})
 
-install(
-  DIRECTORY 
-    include/${PROJECT_NAME}/
-  DESTINATION 
-    ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
 
-install(
-  DIRECTORY 
-    config
-  DESTINATION 
-    ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
-##########
-## Test ##
-##########
-
-if(CATKIN_ENABLE_TESTING)
-  find_package(catkin REQUIRED
-    COMPONENTS
-      ${CATKIN_PACKAGE_DEPENDENCIES}
-      grid_map_filters
-      roslaunch
-      rostest
+  # ignore copyright checks
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE
+    ament_cmake_cpplint
+    ament_cmake_copyright
   )
 
-  # Cummulative distribution
-  catkin_add_gtest(test_${PROJECT_NAME}_cumulative_distribution
-    test/ElevationMapTest.cpp
-    test/test_elevation_mapping.cpp
-    test/WeightedEmpiricalCumulativeDistributionFunctionTest.cpp
+  # run cpplint without copyright filter
+  find_package(ament_cmake_cpplint)
+  ament_cpplint(
+    FILTERS -legal/copyright
   )
 
-  target_link_libraries(test_${PROJECT_NAME}_cumulative_distribution
-    ${PROJECT_NAME}_library
-  )
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
 
-  target_include_directories(test_${PROJECT_NAME}_cumulative_distribution
-    PRIVATE
-      include
-  )
-
-  target_include_directories(test_${PROJECT_NAME}_cumulative_distribution
-    SYSTEM PUBLIC
-      ${catkin_INCLUDE_DIRS}
-  )
-
-  # Input sources
-  add_rostest_gtest(test_${PROJECT_NAME}_input_sources
-    test/input_sources/input_sources.test
-    test/input_sources/test_input_sources.cpp
-    test/input_sources/InputSourcesTest.cpp
-  )
-
-  target_link_libraries(test_${PROJECT_NAME}_input_sources
-    ${PROJECT_NAME}_library
-  )
-
-  target_include_directories(test_${PROJECT_NAME}_input_sources
-    PRIVATE
-      include
-  )
-
-  target_include_directories(test_${PROJECT_NAME}_input_sources SYSTEM PUBLIC
-    ${Boost_INCLUDE_DIRS}
-    ${catkin_INCLUDE_DIRS}
-    ${Eigen_INCLUDE_DIRS}
-  )
-
-  # Postprocessor
-  add_rostest_gtest(test_${PROJECT_NAME}_postprocessor
-    test/postprocessing/postprocessor.test
-    test/postprocessing/main.cpp
-    test/postprocessing/PostprocessorTest.cpp
-  )
-
-  target_include_directories(test_${PROJECT_NAME}_postprocessor PRIVATE
-    include
-  )
-
-  target_include_directories(test_${PROJECT_NAME}_postprocessor SYSTEM PUBLIC
-    ${catkin_INCLUDE_DIRS}
-  )
-
-  target_link_libraries(test_${PROJECT_NAME}_postprocessor
-    ${GTEST_LIBRARIES}
-    ${PROJECT_NAME}_library
-    ${catkin_LIBRARIES}
-  )
-
-  find_package(cmake_code_coverage QUIET)
-  if(cmake_code_coverage_FOUND)
-      add_gtest_coverage(TEST_BUILD_TARGETS
-        test_${PROJECT_NAME}_cumulative_distribution
-      )
-      add_rostest_coverage(TEST_BUILD_TARGETS
-        test_${PROJECT_NAME}_input_sources
-      )
-      add_rostest_coverage(TEST_BUILD_TARGETS
-        test_${PROJECT_NAME}_postprocessor
-      )
-  endif()
+  # add_subdirectory(test)
 endif()
 
-###########
-## Clang ##
-###########
+# install(
+#   TARGETS
+#     ${PROJECT_NAME}
+#     ${PROJECT_NAME}_node
+#   ARCHIVE DESTINATION
+#     lib
+#   LIBRARY DESTINATION
+#     lib
+#   RUNTIME DESTINATION
+#     lib/${PROJECT_NAME}
+# )
 
-find_package(cmake_clang_tools QUIET)
-if(cmake_clang_tools_FOUND)
-  add_default_clang_tooling()
-endif(cmake_clang_tools_FOUND)
+ament_auto_package()
