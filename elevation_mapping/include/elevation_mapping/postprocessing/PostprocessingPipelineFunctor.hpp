@@ -11,6 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <filters/filter_chain.hpp>
 #include <grid_map_core/GridMap.hpp>
+#include <grid_map_msgs/msg/grid_map.hpp>
 
 namespace elevation_mapping {
 
@@ -76,7 +77,7 @@ class PostprocessingPipelineFunctor {
   std::string outputTopic_;
 
   //! Grid map publisher.
-  rclcpp::Publisher publisher_;
+  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr publisher_;
 
   //! Filter chain.
   filters::FilterChain<grid_map::GridMap> filterChain_;

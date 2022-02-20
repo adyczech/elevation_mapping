@@ -7,6 +7,7 @@
  */
 
 #include "elevation_mapping/ElevationMapping.hpp"
+#include "elevation_mapping/QoS.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -108,12 +109,14 @@ TEST(InputSources, ListeningToTopicsAfterRegistration) {  // NOLINT
 
   // Publish to the topics we expect map to subscribe.
   rclcpp::Node node("");
-  rclcpp::Publisher firstLidarPublisher = node.advertise<sensor_msgs::msg::PointCloud2>("/lidar_1/depth/points", 1, false);
-  rclcpp::Publisher secondLidarPublisher = node.advertise<sensor_msgs::msg::PointCloud2>("/lidar_2/depth/points", 1, false);
-
+  auto firstLidarPublisher = node.create_publisher<sensor_msgs::msg::PointCloud2>(
+    "/lidar_1/depth/points", rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+  auto secondLidarPublisher = node.create_publisher<sensor_msgs::msg::PointCloud2>(
+    "/lidar_2/depth/points", rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+    
   // Check if we have exactly one subscriber per topic.
-  ASSERT_EQ(firstLidarPublisher.getNumSubscribers(), 1);
-  ASSERT_EQ(secondLidarPublisher.getNumSubscribers(), 1);
-  // ASSERT_EQ(firstDepthImagePublisher.getNumSubscribers(), 1);
+  ASSERT_EQ(firstLidarPublisher->get_subscription_count(), 1);
+  ASSERT_EQ(secondLidarPublisher->get_subscription_count(), 1);
+  // ASSERT_EQ(firstDepthImagePublisher->get_subscription_count(), 1);
   ASSERT_EQ(map.getNumberOfSources(), 2);
 }

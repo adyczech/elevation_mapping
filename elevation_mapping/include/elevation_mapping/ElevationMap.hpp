@@ -10,6 +10,7 @@
 
 // Grid Map
 #include <grid_map_ros/grid_map_ros.hpp>
+#include <grid_map_msgs/msg/grid_map.hpp>
 
 // Eigen
 #include <Eigen/Core>
@@ -298,8 +299,8 @@ class ElevationMap {
   kindr::HomTransformQuatD pose_;
 
   //! ROS publishers. Publishing of the raw elevation map is handled by the postprocessing pool.
-  rclcpp::Publisher elevationMapFusedPublisher_;
-  rclcpp::Publisher visibilityCleanupMapPublisher_;
+  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapFusedPublisher_;
+  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr visibilityCleanupMapPublisher_;
 
   //! Mutex lock for fused map.
   boost::recursive_mutex fusedMapMutex_;

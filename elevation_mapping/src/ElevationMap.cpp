@@ -13,6 +13,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <Eigen/Dense>
 
+#include "elevation_mapping/QoS.hpp"
 #include "elevation_mapping/ElevationMap.hpp"
 #include "elevation_mapping/ElevationMapFunctors.hpp"
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
@@ -54,12 +55,17 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
   fusedMap_.setBasicLayers({"elevation", "upper_bound", "lower_bound"});
   clear();
 
-  elevationMapFusedPublisher_ = node_->advertise<grid_map_msgs::msg::GridMap>("elevation_map", 1);
+  elevationMapFusedPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
+    "elevation_map",
+    rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+
   if (!underlyingMapTopic_.empty()) {
     underlyingMapSubscriber_ = node_->subscribe(underlyingMapTopic_, 1, &ElevationMap::underlyingMapCallback, this);
   }
   // TODO(max): if (enableVisibilityCleanup_) when parameter cleanup is ready.
-  visibilityCleanupMapPublisher_ = node_->advertise<grid_map_msgs::msg::GridMap>("visibility_cleanup_map", 1);
+  visibilityCleanupMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
+    "visibility_cleanup_map",
+    rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
 
   initialTime_ = rclcpp::Time::now();
 }
@@ -563,15 +569,15 @@ bool ElevationMap::publishFusedElevationMap() {
   grid_map::GridMap fusedMapCopy = fusedMap_;
   scopedLock.unlock();
   fusedMapCopy.add("uncertainty_range", fusedMapCopy.get("upper_bound") - fusedMapCopy.get("lower_bound"));
-  grid_map_msgs::msg::GridMap message;
-  grid_map::GridMapRosConverter::toMessage(fusedMapCopy, message);
-  elevationMapFusedPublisher_.publish(message);
+  grid_map_msgs::msg::GridMap::UniquePtr message;
+  message = grid_map::GridMapRosConverter::toMessage(fusedMapCopy);
+  elevationMapFusedPublisher_->publish(std::move(message));
   RCLCPP_DEBUG(node_->get_logger(), "Elevation map (fused) has been published.");
   return true;
 }
 
 bool ElevationMap::publishVisibilityCleanupMap() {
-  if (visibilityCleanupMapPublisher_.getNumSubscribers() < 1) {
+  if (visibilityCleanupMapPublisher_->get_subscription_count() < 1) {
     return false;
   }
   boost::recursive_mutex::scoped_lock scopedLock(visibilityCleanupMapMutex_);
@@ -584,9 +590,9 @@ bool ElevationMap::publishVisibilityCleanupMap() {
   visibilityCleanupMapCopy.erase("horizontal_variance_xy");
   visibilityCleanupMapCopy.erase("color");
   visibilityCleanupMapCopy.erase("time");
-  grid_map_msgs::msg::GridMap message;
-  grid_map::GridMapRosConverter::toMessage(visibilityCleanupMapCopy, message);
-  visibilityCleanupMapPublisher_.publish(message);
+  grid_map_msgs::msg::GridMap::UniquePtr message;
+  message = grid_map::GridMapRosConverter::toMessage(visibilityCleanupMapCopy);
+  visibilityCleanupMapPublisher_->publish(std::move(message));
   RCLCPP_DEBUG(node_->get_logger(), "Visibility cleanup map has been published.");
   return true;
 }
@@ -674,7 +680,7 @@ bool ElevationMap::hasRawMapSubscribers() const {
 }
 
 bool ElevationMap::hasFusedMapSubscribers() const {
-  return elevationMapFusedPublisher_.getNumSubscribers() >= 1;
+  return elevationMapFusedPublisher_->get_subscription_count() >= 1;
 }
 
 void ElevationMap::underlyingMapCallback(const grid_map_msgs::msg::GridMap& underlyingMap) {
