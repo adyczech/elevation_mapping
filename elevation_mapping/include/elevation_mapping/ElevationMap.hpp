@@ -312,7 +312,7 @@ class ElevationMap {
   boost::recursive_mutex visibilityCleanupMapMutex_;
 
   //! Underlying map subscriber.
-  rclcpp::Subscriber underlyingMapSubscriber_;
+  rclcpp::Subscription<grid_map_msgs::msg::GridMap>::SharedPtr underlyingMapSubscriber_;
 
   //! Initial ros time
   rclcpp::Time initialTime_;

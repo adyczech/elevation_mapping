@@ -57,15 +57,18 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
 
   elevationMapFusedPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
     "elevation_map",
-    rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+    default_qos(1));
 
   if (!underlyingMapTopic_.empty()) {
-    underlyingMapSubscriber_ = node_->subscribe(underlyingMapTopic_, 1, &ElevationMap::underlyingMapCallback, this);
+    underlyingMapSubscriber_ = node_->create_subscription(
+      underlyingMapTopic_,
+      default_qos(1),
+      &ElevationMap::underlyingMapCallback, this);
   }
   // TODO(max): if (enableVisibilityCleanup_) when parameter cleanup is ready.
   visibilityCleanupMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
     "visibility_cleanup_map",
-    rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+    default_qos(1));
 
   initialTime_ = rclcpp::Time::now();
 }
@@ -680,7 +683,7 @@ bool ElevationMap::hasRawMapSubscribers() const {
 }
 
 bool ElevationMap::hasFusedMapSubscribers() const {
-  return elevationMapFusedPublisher_->get_subscription_count() >= 1;
+  return elevationMapFusedPublisher_->get_subscription_count() > 0;
 }
 
 void ElevationMap::underlyingMapCallback(const grid_map_msgs::msg::GridMap& underlyingMap) {

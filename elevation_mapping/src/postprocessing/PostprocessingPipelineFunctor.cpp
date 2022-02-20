@@ -20,7 +20,7 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::Share
   // TODO (magnus) Add logic when setting up failed. What happens actually if it is not configured?
   readParameters();
 
-  publisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(outputTopic_, rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+  publisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(outputTopic_, default_qos()));
 
   // Setup filter chain.
   if (!node.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, node)) {

@@ -110,9 +110,9 @@ TEST(InputSources, ListeningToTopicsAfterRegistration) {  // NOLINT
   // Publish to the topics we expect map to subscribe.
   rclcpp::Node node("");
   auto firstLidarPublisher = node.create_publisher<sensor_msgs::msg::PointCloud2>(
-    "/lidar_1/depth/points", rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+    "/lidar_1/depth/points", default_qos());
   auto secondLidarPublisher = node.create_publisher<sensor_msgs::msg::PointCloud2>(
-    "/lidar_2/depth/points", rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map)));
+    "/lidar_2/depth/points", default_qos());
     
   // Check if we have exactly one subscriber per topic.
   ASSERT_EQ(firstLidarPublisher->get_subscription_count(), 1);

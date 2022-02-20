@@ -13,6 +13,7 @@
 #include <string>
 
 #include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
+#include "elevation_mapping/QoS.hpp"
 
 namespace elevation_mapping {
 class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
@@ -24,7 +25,7 @@ class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
 class Input {
  public:
   template <typename MsgT>
-  using CallbackT = void (ElevationMapping::*)(const boost::shared_ptr<const MsgT>&, bool, const SensorProcessorBase::Ptr&);
+  using CallbackT = void (ElevationMapping::*)(const std::shared_ptr<const MsgT>&, bool, const SensorProcessorBase::Ptr&);
 
   /**
    * @brief Constructor.
@@ -76,7 +77,7 @@ class Input {
                                 const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   // ROS connection.
-  rclcpp::Subscriber subscriber_;
+  rclcpp::SubscriptionBase::SharedPtr subscriber_;
   rclcpp::Node::SharedPtr node_;
 
   //! Sensor processor
@@ -92,8 +93,8 @@ class Input {
 
 template <typename MsgT>
 void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
-  subscriber_ = node_->subscribe<MsgT>(
-      topic_, queueSize_, std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
+  subscriber_ = node_->create_subscription<MsgT>(
+      topic_, default_qos(queueSize_), std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
   RCLCPP_INFO(node_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", type_.c_str(), topic_.c_str(), queueSize_);
 }
 
