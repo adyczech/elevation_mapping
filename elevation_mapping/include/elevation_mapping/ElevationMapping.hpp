@@ -36,7 +36,6 @@
 #include "elevation_mapping/RobotMotionMapUpdater.hpp"
 #include "elevation_mapping/WeightedEmpiricalCumulativeDistributionFunction.hpp"
 #include "elevation_mapping/input_sources/InputSourceManager.hpp"
-#include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
 
 namespace elevation_mapping {
 
@@ -65,10 +64,10 @@ class ElevationMapping {
    *
    * @param pointCloudMsg    The point cloud to be fused with the existing data.
    * @param publishPointCloud If true, publishes the pointcloud after updating the map.
-   * @param sensorProcessor_ The sensorProcessor to use in this callback.
+   * @param sensorProcessor The sensorProcessor to use in this callback.
    */
   void pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
-                          const SensorProcessorBase::Ptr& sensorProcessor_);
+                          const SensorProcessorBase::Ptr& sensorProcessor);
 
   /*!
    * Callback function for the update timer. Forces an update of the map from
@@ -262,8 +261,9 @@ class ElevationMapping {
  protected:
   //! Input sources.
   InputSourceManager inputSources_;
+
+
   //! ROS subscribers.
-  rclcpp::Subscriber pointCloudSubscriber_;  //!< Deprecated, use input_source instead.
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
 
   //! ROS service servers.
@@ -301,14 +301,11 @@ class ElevationMapping {
   std::string trackPointFrameId_;
 
   //! ROS topics for subscriptions.
-  std::string pointCloudTopic_;  //!< Deprecated, use input_source instead.
   std::string robotPoseTopic_;
 
   //! Elevation map.
   ElevationMap map_;
 
-  //! Sensor processors. Deprecated use the one from input sources instead.
-  SensorProcessorBase::Ptr sensorProcessor_;
 
   //! Robot motion elevation map updater.
   RobotMotionMapUpdater robotMotionMapUpdater_;

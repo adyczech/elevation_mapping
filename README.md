@@ -246,10 +246,6 @@ This is the main Robot-Centric Elevation Mapping node. It uses the distance sens
         rosservice call /elevation_mapping/enable_updates {}
 
 #### Parameters
-
-* **`DEPRECATED point_cloud_topic`** (string, default: "/points")
-
-    The name of the distance measurements topic. Use input_sources instead. 
     
 * **`input_sources`** (list of input sources, default: none)
 

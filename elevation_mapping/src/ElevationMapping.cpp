@@ -28,10 +28,8 @@
 #include "elevation_mapping/ElevationMap.hpp"
 #include "elevation_mapping/ElevationMapping.hpp"
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
-#include "elevation_mapping/sensor_processors/LaserSensorProcessor.hpp"
-#include "elevation_mapping/sensor_processors/PerfectSensorProcessor.hpp"
-#include "elevation_mapping/sensor_processors/StereoSensorProcessor.hpp"
-#include "elevation_mapping/sensor_processors/StructuredLightSensorProcessor.hpp"
+#include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
+
 
 namespace elevation_mapping {
 
@@ -69,17 +67,9 @@ namespace elevation_mapping {
   RCLCPP_INFO(node_->get_logger(), "Successfully launched node.");
 }
 
-void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_topic and input_sources configuration.
+void ElevationMapping::setupSubscribers() {  // Handle input_sources configuration.
   const bool configuredInputSources = inputSources_.configureFromRos("input_sources");
-  const bool hasDeprecatedPointcloudTopic = nodeHandle_.hasParam("point_cloud_topic");
-  if (hasDeprecatedPointcloudTopic) {
-    RCLCPP_WARN(node_->get_logger(), "Parameter 'point_cloud_topic' is deprecated, please use 'input_sources' instead.");
-  }
-  if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
-    pointCloudSubscriber_ = nodeHandle_.subscribe<sensor_msgs::msg::PointCloud2>(
-        pointCloudTopic_, 1,
-        std::bind(&ElevationMapping::pointCloudCallback, this, std::placeholders::_1, true, std::ref(sensorProcessor_)));
-  }
+
   if (configuredInputSources) {
     inputSources_.registerCallbacks(*this, make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
   }
@@ -252,26 +242,6 @@ bool ElevationMapping::readParameters() {
   nodeHandle_.param("init_submap_height_offset", initSubmapHeightOffset_, 0.0);
   nodeHandle_.param("target_frame_init_submap", targetFrameInitSubmap_, std::string("/footprint"));
 
-  // SensorProcessor parameters. Deprecated, use the sensorProcessor from within input sources instead!
-  std::string sensorType;
-  nodeHandle_.param("sensor_processor/type", sensorType, std::string("structured_light"));
-
-  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{nodeHandle_.param("robot_base_frame_id", std::string("/robot")),
-                                                                      mapFrameId_};
-  if (sensorType == "structured_light") {
-    sensorProcessor_.reset(new StructuredLightSensorProcessor(nodeHandle_, generalSensorProcessorConfig));
-  } else if (sensorType == "stereo") {
-    sensorProcessor_.reset(new StereoSensorProcessor(nodeHandle_, generalSensorProcessorConfig));
-  } else if (sensorType == "laser") {
-    sensorProcessor_.reset(new LaserSensorProcessor(nodeHandle_, generalSensorProcessorConfig));
-  } else if (sensorType == "perfect") {
-    sensorProcessor_.reset(new PerfectSensorProcessor(nodeHandle_, generalSensorProcessorConfig));
-  } else {
-    RCLCPP_ERROR(node_->get_logger(), "The sensor type %s is not available.", sensorType.c_str());
-  }
-  if (!sensorProcessor_->readParameters()) {
-    return false;
-  }
   if (!robotMotionMapUpdater_.readParameters()) {
     return false;
   }
@@ -314,7 +284,7 @@ void ElevationMapping::visibilityCleanupThread() {
 }
 
 void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
-                                          const SensorProcessorBase::Ptr& sensorProcessor_) {
+                                          const SensorProcessorBase::Ptr& sensorProcessor) {
   RCLCPP_DEBUG(node_->get_logger(), "Processing data from: %s", pointCloudMsg->header.frame_id.c_str());
   if (!updatesEnabled_) {
     RCLCPP_WARN_THROTTLE(
@@ -382,9 +352,9 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2Con
   // Process point cloud.
   PointCloudType::Ptr pointCloudProcessed(new PointCloudType);
   Eigen::VectorXf measurementVariances;
-  if (!sensorProcessor_->process(pointCloud, robotPoseCovariance, pointCloudProcessed, measurementVariances,
+  if (!sensorProcessor->process(pointCloud, robotPoseCovariance, pointCloudProcessed, measurementVariances,
                                  pointCloudMsg->header.frame_id)) {
-    if (!sensorProcessor_->isTfAvailableInBuffer()) {
+    if (!sensorProcessor->isTfAvailableInBuffer()) {
       RCLCPP_INFO_THROTTLE(
     node_->get_logger(),
     *node_->get_clock(),
@@ -417,7 +387,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2Con
 
   // Add point cloud to elevation map.
   if (!map_.add(pointCloudProcessed, measurementVariances, lastPointCloudUpdateTime_,
-                Eigen::Affine3d(sensorProcessor_->transformationSensorToMap_))) {
+                Eigen::Affine3d(sensorProcessor->transformationSensorToMap_))) {
     RCLCPP_ERROR(node_->get_logger(), "Adding point cloud to elevation map failed.");
     resetMapUpdateTimer();
     return;
