@@ -27,9 +27,6 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-// Boost
-#include <boost/thread.hpp>
-
 // Elevation Mapping
 #include "elevation_mapping/ElevationMap.hpp"
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
@@ -73,25 +70,19 @@ class ElevationMapping : public rclcpp::Node {
    * Callback function for the update timer. Forces an update of the map from
    * the robot's motion if no new measurements are received for a certain time
    * period.
-   *
-   * @param timerEvent    The timer event.
    */
-  void mapUpdateTimerCallback(const rclcpp::TimerEvent& timerEvent);
+  void mapUpdateTimerCallback();
 
   /*!
    * Callback function for the fused map publish timer. Publishes the fused map
    * based on configurable duration.
-   *
-   * @param timerEvent    The timer event.
    */
-  void publishFusedMapCallback(const rclcpp::TimerEvent& timerEvent);
+  void publishFusedMapCallback();
 
   /*!
    * Callback function for cleaning map based on visibility ray tracing.
-   *
-   * @param timerEvent  The timer event.
    */
-  void visibilityCleanupCallback(const rclcpp::TimerEvent& timerEvent);
+  void visibilityCleanupCallback();
 
   /*!
    * ROS service callback function to trigger the fusion of the entire
@@ -218,16 +209,6 @@ class ElevationMapping : public rclcpp::Node {
   void setupTimers();
 
   /*!
-   * Separate thread for all fusion service calls.
-   */
-  void runFusionServiceThread();
-
-  /*!
-   * Separate thread for visibility cleanup.
-   */
-  void visibilityCleanupThread();
-
-  /*!
    * Update the elevation map from the robot motion up to a certain time.
    *
    * @param time    Time to which the map is updated to.
@@ -281,11 +262,8 @@ class ElevationMapping : public rclcpp::Node {
   rclcpp::ServiceServer saveMapService_;
   rclcpp::ServiceServer loadMapService_;
 
-  //! Callback thread for the fusion services.
-  boost::thread fusionServiceThread_;
-
-  //! Callback queue for fusion service thread.
-  rclcpp::CallbackQueue fusionServiceQueue_;
+  //! Callback group for fusion service.
+  rclcpp::CallbackGroup::SharedPtr fusionCallbackGroup_;
 
   //! Cache for the robot pose messages.
   message_filters::Cache<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseCache_;
@@ -310,7 +288,6 @@ class ElevationMapping : public rclcpp::Node {
   //! Elevation map.
   std::shared_ptr<ElevationMap> map_;
 
-
   //! Robot motion elevation map updater.
   std::shared_ptr<RobotMotionMapUpdater> robotMotionMapUpdater_;
 
@@ -324,7 +301,7 @@ class ElevationMapping : public rclcpp::Node {
   rclcpp::Time lastPointCloudUpdateTime_;
 
   //! Timer for the robot motion update.
-  rclcpp::Timer mapUpdateTimer_;
+  rclcpp::TimerBase::SharedPtr mapUpdateTimer_;
 
   //! Timer for the initialization of the node
   rclcpp::TimerBase::SharedPtr initTimer_;
@@ -337,7 +314,7 @@ class ElevationMapping : public rclcpp::Node {
   rclcpp::Duration timeTolerance_;
 
   //! Timer for publishing the fused map.
-  rclcpp::Timer fusedMapPublishTimer_;
+  rclcpp::TimerBase::SharedPtr fusedMapPublishTimer_;
 
   //! Duration for the publishing the fusing map.
   rclcpp::Duration fusedMapPublishTimerDuration_;
@@ -346,16 +323,16 @@ class ElevationMapping : public rclcpp::Node {
   bool isContinuouslyFusing_;
 
   //! Timer for the raytracing cleanup.
-  rclcpp::Timer visibilityCleanupTimer_;
+  rclcpp::TimerBase::SharedPtr visibilityCleanupTimer_;
 
   //! Duration for the raytracing cleanup timer.
   rclcpp::Duration visibilityCleanupTimerDuration_;
 
-  //! Callback queue for raytracing cleanup thread.
-  rclcpp::CallbackQueue visibilityCleanupQueue_;
+  //! Callback group for raytracing cleanup.
+  rclcpp::CallbackGroup::SharedPtr visibilityCleanupCallbackGroup_;
 
-  //! Callback thread for raytracing cleanup.
-  boost::thread visibilityCleanupThread_;
+  //! System clock
+  rclcpp::Clock::SharedPtr systemClock_;
 
   //! Becomes true when corresponding poses and point clouds can be found
   bool receivedFirstMatchingPointcloudAndPose_;

@@ -72,7 +72,9 @@ void ElevationMapping::initializeNode() {
   map_ = std::make_shared<ElevationMap>(shared_from_this());
   robotMotionMapUpdater_ = std::make_shared<RobotMotionMapUpdater>(shared_from_this());
   inputSources_ = std::make_shared<InputSourceManager>(shared_from_this());
-  
+
+  systemClock_ = std::make_shared<rclcpp::Clock>();
+
   readParameters();
   setupSubscribers();
   setupServices();
@@ -105,16 +107,17 @@ void ElevationMapping::setupServices() {
   // Multi-threading for fusion.
   rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForTriggerFusion = rclcpp::AdvertiseServiceOptions::create<std_srvs::srv::Empty>(
       "trigger_fusion", boost::bind(&ElevationMapping::fuseEntireMapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
-      &fusionServiceQueue_);
+      fusionCallbackGroup_);
   fusionTriggerService_ = this->advertiseService(advertiseServiceOptionsForTriggerFusion);
 
   rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForGetFusedSubmap = rclcpp::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
-      "get_submap", boost::bind(&ElevationMapping::getFusedSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(), &fusionServiceQueue_);
+      "get_submap", boost::bind(&ElevationMapping::getFusedSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
+      fusionCallbackGroup_);
   fusedSubmapService_ = this->advertiseService(advertiseServiceOptionsForGetFusedSubmap);
 
   rclcpp::AdvertiseServiceOptions advertiseServiceOptionsForGetRawSubmap = rclcpp::AdvertiseServiceOptions::create<grid_map_msgs::srv::GetGridMap>(
       "get_raw_submap", boost::bind(&ElevationMapping::getRawSubmapServiceCallback, this, _1, _2), rclcpp::VoidConstPtr(),
-      &fusionServiceQueue_);
+      fusionCallbackGroup_);
   rawSubmapService_ = this->advertiseService(advertiseServiceOptionsForGetRawSubmap);
 
   clearMapService_ = this->advertiseService("clear_map", &ElevationMapping::clearMapServiceCallback, this);
@@ -126,54 +129,44 @@ void ElevationMapping::setupServices() {
 }
 
 void ElevationMapping::setupTimers() {
-  mapUpdateTimer_ = this->createTimer(maxNoUpdateDuration_, &ElevationMapping::mapUpdateTimerCallback, this, true, false);
+  fusionCallbackGroup_ = create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive
+  );
+  visibilityCleanupCallbackGroup_ = create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive
+  );
 
-  if (!fusedMapPublishTimerDuration_.isZero()) {
-    rclcpp::TimerOptions timerOptions =
-        rclcpp::TimerOptions(fusedMapPublishTimerDuration_, boost::bind(&ElevationMapping::publishFusedMapCallback, this, _1),
-                          &fusionServiceQueue_, false, false);
-    fusedMapPublishTimer_ = this->createTimer(timerOptions);
+  mapUpdateTimer_ = this->create_wall_timer(
+    rclcpp::Duration::to_chrono<std::chrono::duration<long double, std::milli>>(maxNoUpdateDuration_),
+    std::bind(&ElevationMapping::mapUpdateTimerCallback, this));
+
+  mapUpdateTimer_->cancel();  // Do not start the timer yet
+
+  if (fusedMapPublishTimerDuration_.nanoseconds() != 0) {
+    fusedMapPublishTimer_ = create_wall_timer(
+      fusedMapPublishTimerDuration_,
+      std::bind(&ElevationMapping::publishFusedMapCallback, this),
+      fusionCallbackGroup_
+    );
+
+    fusedMapPublishTimer_->cancel();  // Do not start the timer yet
   }
 
   // Multi-threading for visibility cleanup. Visibility clean-up does not help when continuous clean-up is enabled.
-  if (map_->enableVisibilityCleanup_ && !visibilityCleanupTimerDuration_.isZero() && !map_->enableContinuousCleanup_) {
-    rclcpp::TimerOptions timerOptions =
-        rclcpp::TimerOptions(visibilityCleanupTimerDuration_, boost::bind(&ElevationMapping::visibilityCleanupCallback, this, _1),
-                          &visibilityCleanupQueue_, false, false);
-    visibilityCleanupTimer_ = this->createTimer(timerOptions);
+  if (map_->enableVisibilityCleanup_ && 
+      visibilityCleanupTimerDuration_.nanoseconds() != 0  && 
+    !map_->enableContinuousCleanup_) {
+    visibilityCleanupTimer_ = create_wall_timer(
+      visibilityCleanupTimerDuration_,
+      std::bind(&ElevationMapping::visibilityCleanupCallback, this),
+      visibilityCleanupCallbackGroup_
+    );
+
+    visibilityCleanupTimer_->cancel();  // Do not start the timer yet
   }
 }
 
-ElevationMapping::~ElevationMapping() {
-  // Shutdown all services.
-
-  {  // Fusion Service Queue
-    rawSubmapService_.shutdown();
-    fusionTriggerService_.shutdown();
-    fusedSubmapService_.shutdown();
-    fusedMapPublishTimer_.stop();
-
-    fusionServiceQueue_.disable();
-    fusionServiceQueue_.clear();
-  }
-
-  {  // Visibility cleanup queue
-    visibilityCleanupTimer_.stop();
-
-    visibilityCleanupQueue_.disable();
-    visibilityCleanupQueue_.clear();
-  }
-
-  this->shutdown();
-
-  // Join threads.
-  if (fusionServiceThread_.joinable()) {
-    fusionServiceThread_.join();
-  }
-  if (visibilityCleanupThread_.joinable()) {
-    visibilityCleanupThread_.join();
-  }
-}
+ElevationMapping::~ElevationMapping() {}
 
 bool ElevationMapping::readParameters() {
   // ElevationMapping parameters.
@@ -269,36 +262,13 @@ bool ElevationMapping::readParameters() {
 
 bool ElevationMapping::initialize() {
   RCLCPP_INFO(this->get_logger(), "Elevation mapping node initializing ... ");
-  fusionServiceThread_ = boost::thread(boost::bind(&ElevationMapping::runFusionServiceThread, this));
-  rclcpp::Duration(1.0).sleep();  // Need this to get the TF caches fill up.
-  resetMapUpdateTimer();
-  fusedMapPublishTimer_.start();
-  visibilityCleanupThread_ = boost::thread(boost::bind(&ElevationMapping::visibilityCleanupThread, this));
-  visibilityCleanupTimer_.start();
+
+  rclcpp::sleep_for(std::chrono::duration<int64_t, std::milli>(1000));  // Need this to get the TF caches fill up. FIXME?
+  // resetMapUpdateTimer();  // FIXME?
+  fusedMapPublishTimer_.reset();
+  visibilityCleanupTimer_.reset();  // FIXME?
   initializeElevationMap();
   return true;
-}
-
-void ElevationMapping::runFusionServiceThread() {
-  rclcpp::Rate loopRate(20);
-
-  while (this->ok()) {
-    fusionServiceQueue_.callAvailable();
-
-    // Sleep until the next execution.
-    loopRate.sleep();
-  }
-}
-
-void ElevationMapping::visibilityCleanupThread() {
-  rclcpp::Rate loopRate(20);
-
-  while (this->ok()) {
-    visibilityCleanupQueue_.callAvailable();
-
-    // Sleep until the next execution.
-    loopRate.sleep();
-  }
 }
 
 void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2ConstPtr& pointCloudMsg, bool publishPointCloud,
@@ -314,6 +284,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2Con
       map_->setTimestamp(rclcpp::Time::now());
       map_->postprocessAndPublishRawElevationMap();
     }
+    resetMapUpdateTimer();
     return;
   }
 
@@ -328,6 +299,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2Con
     *this->get_clock(),
     5,
      "No corresponding point cloud and pose are found. Waiting for first match. (Warning message is throttled, 5s.)");
+     resetMapUpdateTimer();
       return;
     } else {
       RCLCPP_INFO(this->get_logger(), "First corresponding point cloud and pose found, elevation mapping started. ");
@@ -423,7 +395,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2Con
   resetMapUpdateTimer();
 }
 
-void ElevationMapping::mapUpdateTimerCallback(const rclcpp::TimerEvent&) {
+void ElevationMapping::mapUpdateTimerCallback() {
   if (!updatesEnabled_) {
     RCLCPP_WARN_THROTTLE(
     this->get_logger(),
@@ -466,7 +438,7 @@ void ElevationMapping::mapUpdateTimerCallback(const rclcpp::TimerEvent&) {
   resetMapUpdateTimer();
 }
 
-void ElevationMapping::publishFusedMapCallback(const rclcpp::TimerEvent&) {
+void ElevationMapping::publishFusedMapCallback() {
   if (!map_->hasFusedMapSubscribers()) {
     return;
   }
@@ -476,7 +448,7 @@ void ElevationMapping::publishFusedMapCallback(const rclcpp::TimerEvent&) {
   map_->publishFusedElevationMap();
 }
 
-void ElevationMapping::visibilityCleanupCallback(const rclcpp::TimerEvent&) {
+void ElevationMapping::visibilityCleanupCallback() {
   RCLCPP_DEBUG(this->get_logger(), "Elevation map is running visibility cleanup.");
   // Copy constructors for thread-safety.
   map_->visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_));
@@ -759,17 +731,24 @@ bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::R
 }
 
 void ElevationMapping::resetMapUpdateTimer() {
-  mapUpdateTimer_.stop();
-  rclcpp::Duration periodSinceLastUpdate = rclcpp::Time::now() - map_->getTimeOfLastUpdate();
+  mapUpdateTimer_->cancel();
+  rclcpp::Duration periodSinceLastUpdate = systemClock_->now() - map_->getTimeOfLastUpdate();
   if (periodSinceLastUpdate > maxNoUpdateDuration_) {
-    periodSinceLastUpdate.fromSec(0.0);
+    periodSinceLastUpdate.from_nanoseconds(0);
   }
-  mapUpdateTimer_.setPeriod(maxNoUpdateDuration_ - periodSinceLastUpdate);
-  mapUpdateTimer_.start();
+  auto period = (maxNoUpdateDuration_ - periodSinceLastUpdate);
+  if (period.nanoseconds() < 0) {
+    period = rclcpp::Duration::from_nanoseconds(0);
+  }
+
+  mapUpdateTimer_ = create_wall_timer(
+    (period).to_chrono<std::chrono::duration<long double, std::milli>>(),
+    std::bind(&ElevationMapping::mapUpdateTimerCallback, this)
+  );
 }
 
 void ElevationMapping::stopMapUpdateTimer() {
-  mapUpdateTimer_.stop();
+  mapUpdateTimer_->cancel();
 }
 
 }  // namespace elevation_mapping
