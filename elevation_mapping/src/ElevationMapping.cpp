@@ -9,6 +9,7 @@
 #include <cmath>
 #include <string>
 #include <chrono>
+#include <mutex>
 
 #include <grid_map_msgs/msg/grid_map.hpp>
 #include <pcl/PCLPointCloud2.h>
@@ -17,7 +18,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <boost/bind.hpp>
-#include <boost/thread/recursive_mutex.hpp>
 #include <grid_map_ros/grid_map_ros.hpp>
 #include <kindr/Core>
 #include <kindr_ros/kindr_ros.hpp>
@@ -357,7 +357,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2Con
     return;
   }
 
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getRawDataMutex());
+  std::scoped_lock scopedLock(map_->getRawDataMutex());
 
   // Update map location.
   updateMapLocation();
@@ -417,7 +417,7 @@ void ElevationMapping::mapUpdateTimerCallback() {
     5,
      "Elevation map is updated without data from the sensor. (Warning message is throttled, 5s.)");
 
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getRawDataMutex());
+  std::scoped_lock scopedLock(map_->getRawDataMutex());
 
   stopMapUpdateTimer();
 
@@ -443,7 +443,7 @@ void ElevationMapping::publishFusedMapCallback() {
     return;
   }
   RCLCPP_DEBUG(this->get_logger(), "Elevation map is fused and published from timer.");
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getFusedDataMutex());
+  std::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
   map_->publishFusedElevationMap();
 }
@@ -455,7 +455,7 @@ void ElevationMapping::visibilityCleanupCallback() {
 }
 
 bool ElevationMapping::fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request&, std_srvs::srv::Empty::Response&) {
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getFusedDataMutex());
+  std::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
   map_->publishFusedElevationMap();
   return true;
@@ -535,13 +535,16 @@ bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGrid
   grid_map::Length requestedSubmapLength(request.length_x, request.length_y);
   RCLCPP_DEBUG(this->get_logger(), "Elevation submap request: Position x=%f, y=%f, Length x=%f, y=%f.", requestedSubmapPosition.x(), requestedSubmapPosition.y(),
             requestedSubmapLength(0), requestedSubmapLength(1));
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getFusedDataMutex());
-  map_->fuseArea(requestedSubmapPosition, requestedSubmapLength);
 
   bool isSuccess;
-  grid_map::Index index;
-  grid_map::GridMap subMap = map_->getFusedGridMap().getSubmap(requestedSubmapPosition, requestedSubmapLength, index, isSuccess);
-  scopedLock.unlock();
+  grid_map::GridMap subMap;
+  {
+    std::scoped_lock scopedLock(map_->getFusedDataMutex());
+    map_->fuseArea(requestedSubmapPosition, requestedSubmapLength);
+
+    subMap = map_->getFusedGridMap().getSubmap(requestedSubmapPosition, requestedSubmapLength, isSuccess);
+    // scopedLock.unlock();
+  }
 
   if (request.layers.empty()) {
     grid_map::GridMapRosConverter::toMessage(subMap, response.map);
@@ -563,12 +566,15 @@ bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMa
   grid_map::Length requestedSubmapLength(request.length_x, request.length_y);
   RCLCPP_DEBUG(this->get_logger(), "Elevation raw submap request: Position x=%f, y=%f, Length x=%f, y=%f.", requestedSubmapPosition.x(),
             requestedSubmapPosition.y(), requestedSubmapLength(0), requestedSubmapLength(1));
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getRawDataMutex());
-
   bool isSuccess;
-  grid_map::Index index;
-  grid_map::GridMap subMap = map_->getRawGridMap().getSubmap(requestedSubmapPosition, requestedSubmapLength, index, isSuccess);
-  scopedLock.unlock();
+  grid_map::GridMap subMap;
+  {
+    std::scoped_lock scopedLock(map_->getRawDataMutex());
+
+    subMap = map_->getRawGridMap().getSubmap(requestedSubmapPosition, requestedSubmapLength, isSuccess);
+    // scopedLock.unlock();
+  }
+
 
   if (request.layers.empty()) {
     grid_map::GridMapRosConverter::toMessage(subMap, response.map);
@@ -651,7 +657,7 @@ bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridM
     mask = Eigen::MatrixXf::Ones(sourceMap.getSize()(0), sourceMap.getSize()(1));
   }
 
-  boost::recursive_mutex::scoped_lock scopedLockRawData(map_->getRawDataMutex());
+  std::scoped_lock scopedLockRawData(map_->getRawDataMutex());
 
   // Loop over all layers that should be set
   for (auto sourceLayerIterator = sourceMap.getLayers().begin(); sourceLayerIterator != sourceMap.getLayers().end();
@@ -692,7 +698,7 @@ bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridM
 bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request,
                                               grid_map_msgs::srv::ProcessFile::Response& response) {
   RCLCPP_INFO(this->get_logger(), "Saving map to file.");
-  boost::recursive_mutex::scoped_lock scopedLock(map_->getFusedDataMutex());
+  std::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
   std::string topic = this->getNamespace() + "/elevation_map";
   if (!request.topic_name.empty()) {
@@ -708,8 +714,8 @@ bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::R
 bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request& request,
                                               grid_map_msgs::srv::ProcessFile::Response& response) {
   RCLCPP_WARN(this->get_logger(), "Loading from bag file.");
-  boost::recursive_mutex::scoped_lock scopedLockFused(map_->getFusedDataMutex());
-  boost::recursive_mutex::scoped_lock scopedLockRaw(map_->getRawDataMutex());
+  std::scoped_lock scopedLockFused(map_->getFusedDataMutex());
+  std::scoped_lock scopedLockRaw(map_->getRawDataMutex());
 
   std::string topic = this->getNamespace();
   if (!request.topic_name.empty()) {

@@ -19,9 +19,8 @@
 // Kindr
 #include <kindr/Core>
 
-// Boost
-#include <boost/thread/recursive_mutex.hpp>
-
+// C++
+#include <mutex>
 // ROS
 #include <rclcpp/rclcpp.hpp>
 
@@ -186,13 +185,13 @@ class ElevationMap {
    * Gets the fused data mutex.
    * @return reference to the fused data mutex.
    */
-  boost::recursive_mutex& getFusedDataMutex();
+  std::recursive_mutex& getFusedDataMutex();
 
   /*!
    * Gets the raw data mutex.
    * @return reference to the raw data mutex.
    */
-  boost::recursive_mutex& getRawDataMutex();
+  std::recursive_mutex& getRawDataMutex();
 
   /*!
    * Set the frame id.
@@ -303,13 +302,13 @@ class ElevationMap {
   rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr visibilityCleanupMapPublisher_;
 
   //! Mutex lock for fused map.
-  boost::recursive_mutex fusedMapMutex_;
+  std::recursive_mutex fusedMapMutex_;
 
   //! Mutex lock for raw map.
-  boost::recursive_mutex rawMapMutex_;
+  std::recursive_mutex rawMapMutex_;
 
   //! Mutex lock for visibility cleanup map.
-  boost::recursive_mutex visibilityCleanupMapMutex_;
+  std::recursive_mutex visibilityCleanupMapMutex_;
 
   //! Underlying map subscriber.
   rclcpp::Subscription<grid_map_msgs::msg::GridMap>::SharedPtr underlyingMapSubscriber_;
