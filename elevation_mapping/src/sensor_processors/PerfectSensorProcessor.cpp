@@ -29,8 +29,8 @@ PerfectSensorProcessor::PerfectSensorProcessor(rclcpp::Node::SharedPtr node, con
 
 PerfectSensorProcessor::~PerfectSensorProcessor() = default;
 
-bool PerfectSensorProcessor::readParameters() {
-  return SensorProcessorBase::readParameters();
+bool PerfectSensorProcessor::readParameters(std::string processorNamespace) {
+  return SensorProcessorBase::readParameters(processorNamespace);
 }
 
 bool PerfectSensorProcessor::computeVariances(const PointCloudType::ConstPtr pointCloud,

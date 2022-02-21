@@ -33,14 +33,13 @@ namespace elevation_mapping {
 
 SensorProcessorBase::SensorProcessorBase(rclcpp::Node::SharedPtr node, const GeneralParameters& generalConfig)
     : node_(node),
-      // transformListener_(transformBuffer_),
       ignorePointsUpperThreshold_(std::numeric_limits<double>::infinity()),
       ignorePointsLowerThreshold_(-std::numeric_limits<double>::infinity()),
       applyVoxelGridFilter_(false),
       firstTfAvailable_(false) {
   transformBuffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
   transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
-        
+
   pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
   transformationSensorToMap_.setIdentity();
   generalParameters_ = generalConfig;
@@ -53,12 +52,17 @@ SensorProcessorBase::SensorProcessorBase(rclcpp::Node::SharedPtr node, const Gen
 
 SensorProcessorBase::~SensorProcessorBase() = default;
 
-bool SensorProcessorBase::readParameters() {
-  node_->param("sensor_processor/ignore_points_above", ignorePointsUpperThreshold_, std::numeric_limits<double>::infinity());
-  node_->param("sensor_processor/ignore_points_below", ignorePointsLowerThreshold_, -std::numeric_limits<double>::infinity());
+bool SensorProcessorBase::readParameters(std::string processorNamespace) {
+  node_->declare_parameter(std::string(processorNamespace + ".ignore_points_above"), std::numeric_limits<double>::infinity());
+  node_->declare_parameter(std::string(processorNamespace + ".ignore_points_below"), -std::numeric_limits<double>::infinity());
+  node_->declare_parameter(std::string(processorNamespace + ".apply_voxelgrid_filter"), false);
+  node_->declare_parameter(std::string(processorNamespace + ".voxelgrid_filter_size"), 0.0);
 
-  node_->param("sensor_processor/apply_voxelgrid_filter", applyVoxelGridFilter_, false);
-  node_->param("sensor_processor/voxelgrid_filter_size", sensorParameters_["voxelgrid_filter_size"], 0.0);
+  node_->get_parameter(std::string(processorNamespace + ".ignore_points_above"), ignorePointsUpperThreshold_);
+  node_->get_parameter(std::string(processorNamespace + ".ignore_points_below"), ignorePointsLowerThreshold_);
+  node_->get_parameter(std::string(processorNamespace + ".apply_voxelgrid_filter"), applyVoxelGridFilter_);
+  node_->get_parameter(std::string(processorNamespace + ".voxelgrid_filter_size"), sensorParameters_["voxelgrid_filter_size"]);
+
   return true;
 }
 

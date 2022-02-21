@@ -32,11 +32,16 @@ LaserSensorProcessor::LaserSensorProcessor(rclcpp::Node::SharedPtr node, const S
 
 LaserSensorProcessor::~LaserSensorProcessor() = default;
 
-bool LaserSensorProcessor::readParameters() {
-  SensorProcessorBase::readParameters();
-  node_->param("sensor_processor/min_radius", sensorParameters_["min_radius"], 0.0);
-  node_->param("sensor_processor/beam_angle", sensorParameters_["beam_angle"], 0.0);
-  node_->param("sensor_processor/beam_constant", sensorParameters_["beam_constant"], 0.0);
+bool LaserSensorProcessor::readParameters(std::string processorNamespace) {
+  SensorProcessorBase::readParameters(processorNamespace);
+  node_->declare_parameter(std::string(processorNamespace + ".min_radius"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".beam_angle"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".beam_constant"), 0.0);
+
+
+  node_->get_parameter(std::string(processorNamespace + ".min_radius"), sensorParameters_["min_radius"]);
+  node_->get_parameter(std::string(processorNamespace + ".beam_angle"), sensorParameters_["beam_angle"]);
+  node_->get_parameter(std::string(processorNamespace + ".beam_constant"), sensorParameters_["beam_constant"]);
   return true;
 }
 

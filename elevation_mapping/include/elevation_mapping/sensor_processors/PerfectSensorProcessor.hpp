@@ -32,9 +32,10 @@ class PerfectSensorProcessor : public SensorProcessorBase {
  private:
   /*!
    * Reads and verifies the parameters.
+   * @param[in] processorNamespace parameter namespace to read parameters from
    * @return true if successful.
    */
-  bool readParameters() override;
+  bool readParameters(std::string processorNamespace) override;
 
   /*!
    * Computes the elevation map height variances for each point in a point cloud with the

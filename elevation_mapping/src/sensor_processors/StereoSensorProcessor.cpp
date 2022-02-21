@@ -23,17 +23,30 @@ StereoSensorProcessor::StereoSensorProcessor(rclcpp::Node::SharedPtr node, const
 
 StereoSensorProcessor::~StereoSensorProcessor() = default;
 
-bool StereoSensorProcessor::readParameters() {
-  SensorProcessorBase::readParameters();
-  node_->param("sensor_processor/p_1", sensorParameters_["p_1"], 0.0);
-  node_->param("sensor_processor/p_2", sensorParameters_["p_2"], 0.0);
-  node_->param("sensor_processor/p_3", sensorParameters_["p_3"], 0.0);
-  node_->param("sensor_processor/p_4", sensorParameters_["p_4"], 0.0);
-  node_->param("sensor_processor/p_5", sensorParameters_["p_5"], 0.0);
-  node_->param("sensor_processor/lateral_factor", sensorParameters_["lateral_factor"], 0.0);
-  node_->param("sensor_processor/depth_to_disparity_factor", sensorParameters_["depth_to_disparity_factor"], 0.0);
-  node_->param("sensor_processor/cutoff_min_depth", sensorParameters_["cutoff_min_depth"], std::numeric_limits<double>::min());
-  node_->param("sensor_processor/cutoff_max_depth", sensorParameters_["cutoff_max_depth"], std::numeric_limits<double>::max());
+bool StereoSensorProcessor::readParameters(std::string processorNamespace) {
+  SensorProcessorBase::readParameters(processorNamespace);
+
+  node_->declare_parameter(std::string(processorNamespace + ".p_1"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".p_2"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".p_3"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".p_4"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".p_5"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".lateral_factor"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".depth_to_disparity_factor"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".cutoff_min_depth"), std::numeric_limits<double>::min());
+  node_->declare_parameter(std::string(processorNamespace + ".cutoff_max_depth"), std::numeric_limits<double>::max());
+
+
+  node_->get_parameter(std::string(processorNamespace + ".p_1"), sensorParameters_["p_1"]);
+  node_->get_parameter(std::string(processorNamespace + ".p_2"), sensorParameters_["p_2"]);
+  node_->get_parameter(std::string(processorNamespace + ".p_3"), sensorParameters_["p_3"]);
+  node_->get_parameter(std::string(processorNamespace + ".p_4"), sensorParameters_["p_4"]);
+  node_->get_parameter(std::string(processorNamespace + ".p_5"), sensorParameters_["p_5"]);
+  node_->get_parameter(std::string(processorNamespace + ".lateral_factor"), sensorParameters_["lateral_factor"]);
+  node_->get_parameter(std::string(processorNamespace + ".depth_to_disparity_factor"), sensorParameters_["depth_to_disparity_factor"]);
+  node_->get_parameter(std::string(processorNamespace + ".cutoff_min_depth"), sensorParameters_["cutoff_min_depth"]);
+  node_->get_parameter(std::string(processorNamespace + ".cutoff_max_depth"), sensorParameters_["cutoff_max_depth"]);
+  
   return true;
 }
 

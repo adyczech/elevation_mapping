@@ -83,9 +83,10 @@ class SensorProcessorBase {
  protected:
   /*!
    * Reads and verifies the parameters.
+   * @param[in] processorNamespace parameter namespace to read parameters from
    * @return true if successful.
    */
-  virtual bool readParameters();
+  virtual bool readParameters(std::string processorNamespace);
 
   /*!
    * Filters the point cloud regardless of the sensor type. Removes NaN values.

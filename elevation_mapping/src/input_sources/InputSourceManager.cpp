@@ -11,48 +11,34 @@
 
 namespace elevation_mapping {
 
-InputSourceManager::InputSourceManager(const rclcpp::Node::SharedPtr node) : node_(node(node) {}
+InputSourceManager::InputSourceManager(const rclcpp::Node::SharedPtr node) : node_(node) {}
 
 bool InputSourceManager::configureFromRos(const std::string& inputSourcesNamespace) {
-  XmlRpc::XmlRpcValue inputSourcesConfiguration;
-  if (!node_->getParam(inputSourcesNamespace, inputSourcesConfiguration)) {
-    RCLCPP_WARN(
-        "Could not load the input sources configuration from parameter\n "
-        "%s, are you sure it was pushed to the parameter server? Assuming\n "
-        "that you meant to leave it empty. Not subscribing to any inputs!\n",
-        node_->resolveName(inputSourcesNamespace).c_str());
-    return false;
-  }
-  return configure(inputSourcesConfiguration, inputSourcesNamespace);
-}
+  std::vector<std::string> sensor_names;
 
-bool InputSourceManager::configure(const XmlRpc::XmlRpcValue& config, const std::string& sourceConfigurationName) {
-  if (config.getType() == XmlRpc::XmlRpcValue::TypeArray &&
-      config.size() == 0) {  // Use Empty array as special case to explicitly configure no inputs.
-    return true;
-  }
+    std::stringstream ss;
+  ss << inputSourcesNamespace << "." << "sensors";
+  std::string full_sensor_parameter_name = ss.str();
 
-  if (config.getType() != XmlRpc::XmlRpcValue::TypeStruct) {
-    RCLCPP_ERROR(
-        "%s: The input sources specification must be a struct. but is of "
-        "of XmlRpcType %d",
-        sourceConfigurationName.c_str(), config.getType());
-    RCLCPP_ERROR(node_->get_logger(), "The xml passed in is formatted as follows:\n %s", config.toXml().c_str());
-    return false;
+  node_->declare_parameter(full_sensor_parameter_name, std::vector<std::string>());
+
+  if (!node_->get_parameter(full_sensor_parameter_name, sensor_names)) {
+    RCLCPP_ERROR(node_->get_logger(), "No sensor plugin(s) defined for elevation mapping. Not subscribing to any inputs.");
+  } else if (sensor_names.empty()) {
+    RCLCPP_ERROR(node_->get_logger(), "List of sensor plugin(s) is empty. Not subscribing to any inputs.");
   }
 
   bool successfulConfiguration = true;
   std::set<std::string> subscribedTopics;
-  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{node_->param("robot_base_frame_id", std::string("/robot")),
-                                                                      node_->param("map_frame_id", std::string("/map"))};
-  // Configure all input sources in the list.
-  for (auto& inputConfig : config) {
-    Input source = Input(rclcpp::Node(node_->resolveName(sourceConfigurationName + "/" + inputConfig.first)));
+  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig(node_->get_parameter("robot_base_frame_id").as_string(),
+                                                                      node_->get_parameter("map_frame_id").as_string());
 
-    bool configured = source.configure(inputConfig.first, inputConfig.second, generalSensorProcessorConfig);
-    if (!configured) {
+  for (const auto& sensor_name : sensor_names) {
+    // TODO(SivertHavso): Confirm whether a new node for each input should be made.
+    Input source = Input(node_);
+
+    if (!source.configure(std::string("input_sources." + sensor_name), generalSensorProcessorConfig)) {
       successfulConfiguration = false;
-      continue;
     }
 
     std::string subscribedTopic = source.getSubscribedTopic();
@@ -62,6 +48,7 @@ bool InputSourceManager::configure(const XmlRpc::XmlRpcValue& config, const std:
       sources_.push_back(std::move(source));
     } else {
       RCLCPP_WARN(
+          node_->get_logger(),
           "The input sources specification tried to subscribe to %s "
           "multiple times. Only subscribing once.",
           subscribedTopic.c_str());

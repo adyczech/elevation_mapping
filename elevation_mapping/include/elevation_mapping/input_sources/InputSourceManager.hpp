@@ -10,7 +10,6 @@
 
 #include "elevation_mapping/input_sources/Input.hpp"
 
-#include <XmlRpc.h>
 #include <rclcpp/rclcpp.hpp>
 
 namespace elevation_mapping {
@@ -29,21 +28,12 @@ class InputSourceManager {
   explicit InputSourceManager(const rclcpp::Node::SharedPtr node);
 
   /**
-   * @brief Configure the input sources from a configuration stored on the
-   * parameter server under inputSourcesNamespace.
+   * @brief Configure the input sources.
+   * This will configure all managed input sources.
    * @param inputSourcesNamespace The namespace of the subscribers list to load.
    * @return True if configuring was successful.
    */
   bool configureFromRos(const std::string& inputSourcesNamespace);
-
-  /**
-   * @brief Configure the input sources.
-   * This will configure all managed input sources.
-   * @param parameters The list of input source parameters.
-   * @param sourceConfigurationName The name of the input source configuration.
-   * @return True if configuring was successful.
-   */
-  bool configure(const XmlRpc::XmlRpcValue& parameters, const std::string& sourceConfigurationName);
 
   /**
    * @brief Registers the corresponding callback in the elevationMap.

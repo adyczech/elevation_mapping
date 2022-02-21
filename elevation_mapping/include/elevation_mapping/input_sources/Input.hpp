@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <XmlRpc.h>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 
@@ -36,12 +35,11 @@ class Input {
 
   /**
    * @brief Configure the input source.
-   * @param name Name of this input source.
-   * @param parameters The configuration parameters.
+   * @param inputNamespace The parameter namespace of the input parameters to load.
    * @param generalSensorProcessorParameters Parameters shared by all sensor processors.
    * @return True if configuring was successful.
    */
-  bool configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
+  bool configure(std::string inputNamespace,
                  const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   /**
@@ -67,13 +65,12 @@ class Input {
  private:
   /**
    * @brief Configures the used sensor processor from the given parameters.
-   * @param name The name of this input source
-   * @param parameters The parameters of this input source
+   * @param processorName The parameter namespace of the sensor processor
    * @param generalSensorProcessorParameters  General parameters needed for the sensor processor that are not specific to this sensor
    * processor.
    * @return True if successful.
    */
-  bool configureSensorProcessor(std::string name, const XmlRpc::XmlRpcValue& parameters,
+  bool configureSensorProcessor(std::string processorNamespace,
                                 const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   // ROS connection.

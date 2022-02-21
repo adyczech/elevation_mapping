@@ -29,16 +29,27 @@ StructuredLightSensorProcessor::StructuredLightSensorProcessor(rclcpp::Node::Sha
 
 StructuredLightSensorProcessor::~StructuredLightSensorProcessor() = default;
 
-bool StructuredLightSensorProcessor::readParameters() {
-  SensorProcessorBase::readParameters();
-  node_->param("sensor_processor/normal_factor_a", sensorParameters_["normal_factor_a"], 0.0);
-  node_->param("sensor_processor/normal_factor_b", sensorParameters_["normal_factor_b"], 0.0);
-  node_->param("sensor_processor/normal_factor_c", sensorParameters_["normal_factor_c"], 0.0);
-  node_->param("sensor_processor/normal_factor_d", sensorParameters_["normal_factor_d"], 0.0);
-  node_->param("sensor_processor/normal_factor_e", sensorParameters_["normal_factor_e"], 0.0);
-  node_->param("sensor_processor/lateral_factor", sensorParameters_["lateral_factor"], 0.0);
-  node_->param("sensor_processor/cutoff_min_depth", sensorParameters_["cutoff_min_depth"], std::numeric_limits<double>::min());
-  node_->param("sensor_processor/cutoff_max_depth", sensorParameters_["cutoff_max_depth"], std::numeric_limits<double>::max());
+bool StructuredLightSensorProcessor::readParameters(std::string processorNamespace) {
+  SensorProcessorBase::readParameters(processorNamespace);
+
+  node_->declare_parameter(std::string(processorNamespace + ".normal_factor_a"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".normal_factor_b"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".normal_factor_c"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".normal_factor_d"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".normal_factor_e"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".lateral_factor"), 0.0);
+  node_->declare_parameter(std::string(processorNamespace + ".cutoff_min_depth"), std::numeric_limits<double>::min());
+  node_->declare_parameter(std::string(processorNamespace + ".cutoff_max_depth"), std::numeric_limits<double>::max());
+
+  node_->get_parameter(std::string(processorNamespace + ".normal_factor_a"), sensorParameters_["normal_factor_a"]);
+  node_->get_parameter(std::string(processorNamespace + ".normal_factor_b"), sensorParameters_["normal_factor_b"]);
+  node_->get_parameter(std::string(processorNamespace + ".normal_factor_c"), sensorParameters_["normal_factor_c"]);
+  node_->get_parameter(std::string(processorNamespace + ".normal_factor_d"), sensorParameters_["normal_factor_d"]);
+  node_->get_parameter(std::string(processorNamespace + ".normal_factor_e"), sensorParameters_["normal_factor_e"]);
+  node_->get_parameter(std::string(processorNamespace + ".lateral_factor"), sensorParameters_["lateral_factor"]);
+  node_->get_parameter(std::string(processorNamespace + ".cutoff_min_depth"), sensorParameters_["cutoff_min_depth"]);
+  node_->get_parameter(std::string(processorNamespace + ".cutoff_max_depth"), sensorParameters_["cutoff_max_depth"]);
+
   return true;
 }
 
