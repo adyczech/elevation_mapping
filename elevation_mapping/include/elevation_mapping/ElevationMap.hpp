@@ -246,9 +246,14 @@ class ElevationMap {
 
  private:
   /*!
-   * @brief Declare parameters used for the elevation map
+   * @brief Declare ROS parameters used for the elevation map
    */
   void declareParameters();
+
+  /*!
+   * @brief Read ROS parameters used for the elevation map
+   */
+  void readParameters();
 
   /*!
    * Fuses a region of the map.

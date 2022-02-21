@@ -283,9 +283,6 @@ class ElevationMapping : public rclcpp::Node {
   //! Size of the cache for the robot pose messages.
   int robotPoseCacheSize_;
 
-  //! Frame ID of the elevation map
-  std::string mapFrameId_;
-
   //! TF listener and buffer.
   std::shared_ptr<tf2_ros::Buffer> transformBuffer_;
   std::shared_ptr<tf2_ros::TransformListener> transformListener_;

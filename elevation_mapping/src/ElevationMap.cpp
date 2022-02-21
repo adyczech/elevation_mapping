@@ -58,6 +58,7 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
   clear();
 
   declareParameters();
+  readParameters();
 
   postprocessorPool_ = std::make_shared<PostprocessorPool>(node_->get_parameter("postprocessor_num_threads").as_int(), node_),
 
@@ -82,7 +83,63 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
 ElevationMap::~ElevationMap() = default;
 
 void ElevationMap::declareParameters() {
+  // Create a default float range for metre parameters. Mainly to avoid negative values,
+  // and exact 0 values. Hence use an overestimated required range (1e-9 to 1e9 metres)
+  rcl_interfaces::msg::ParameterDescriptor default_positive_metre_range;
+  default_positive_metre_range.floating_point_range.resize(1);
+  auto & metre_float_range = default_positive_metre_range.floating_point_range.at(0);
+  metre_float_range.from_value = 1e-9;
+  metre_float_range.to_value = 1e9;
+
+  // ElevationMap parameters.
   node_->declare_parameter("postprocessor_num_threads", 1);
+  node_->declare_parameter("map_frame_id", std::string("map"));
+  node_->declare_parameter("length_in_x", 1.5, default_positive_metre_range);
+  node_->declare_parameter("length_in_y", 1.5, default_positive_metre_range);
+  node_->declare_parameter("position_x", 0.0);
+  node_->declare_parameter("position_y", 0.0);
+  node_->declare_parameter("resolution", 0.01, default_positive_metre_range);
+  node_->declare_parameter("min_variance", pow(0.003, 2));
+  node_->declare_parameter("max_variance", pow(0.03, 2));
+  node_->declare_parameter("mahalanobis_distance_threshold", 2.5, default_positive_metre_range);
+  node_->declare_parameter("multi_height_noise", pow(0.003, 2));
+  node_->declare_parameter("min_horizontal_variance", -1.0);  // Correct later when reading parameter
+  node_->declare_parameter("max_horizontal_variance", 0.5);
+  node_->declare_parameter("underlying_map_topic", std::string());
+  node_->declare_parameter("enable_visibility_cleanup", true);
+  node_->declare_parameter("enable_continuous_cleanup", false);
+  node_->declare_parameter("scanning_duration", 1.0);
+}
+
+void ElevationMap::readParameters() {
+  grid_map::Length length;
+  grid_map::Position position;
+  double resolution;
+
+  std::string mapFrameId;
+  node_->get_parameter("map_frame_id", mapFrameId);
+  setFrameId(mapFrameId);
+
+  node_->get_parameter("length_in_x", length(0));
+  node_->get_parameter("length_in_y", length(1));
+  node_->get_parameter("position_x", position.x());
+  node_->get_parameter("position_y", position.y());
+  setGeometry(length, resolution, position);
+  node_->get_parameter("min_variance", minVariance_);
+  node_->get_parameter("max_variance", maxVariance_);
+  node_->get_parameter("mahalanobis_distance_threshold", mahalanobisDistanceThreshold_);
+  node_->get_parameter("multi_height_noise", multiHeightNoise_);
+
+  node_->get_parameter("min_horizontal_variance", minHorizontalVariance_);
+  if (minHorizontalVariance_ < 0.0) {
+    minHorizontalVariance_ = pow(resolution / 2.0, 2);
+  }
+
+  node_->get_parameter("max_horizontal_variance", maxHorizontalVariance_);
+  node_->get_parameter("underlying_map_topic", underlyingMapTopic_);
+  node_->get_parameter("enable_visibility_cleanup", enableVisibilityCleanup_);
+  node_->get_parameter("enable_continuous_cleanup", enableContinuousCleanup_);
+  node_->get_parameter("scanning_duration", scanningDuration_);
 }
 
 void ElevationMap::setGeometry(const grid_map::Length& length, const double& resolution, const grid_map::Position& position) {

@@ -6,6 +6,8 @@
  *   Institute: ETH Zurich, ANYbotics
  */
 
+#define BOOST_BIND_NO_PLACEHOLDERS
+
 #include <cmath>
 #include <string>
 #include <chrono>
@@ -217,24 +219,6 @@ void ElevationMapping::declareParameters() {
   this->declare_parameter("time_tolerance", 0.0);
   this->declare_parameter("fused_map_publishing_rate", 1.0);
   this->declare_parameter("visibility_cleanup_rate", 1.0);
-
-  // ElevationMap parameters. TODO Move this to the elevation map class.
-  this->declare_parameter("map_frame_id", std::string("map"));
-  this->declare_parameter("length_in_x", 1.5);
-  this->declare_parameter("length_in_y", 1.5);
-  this->declare_parameter("position_x", 0.0);
-  this->declare_parameter("position_y", 0.0);
-  this->declare_parameter("resolution", 0.01);
-  this->declare_parameter("min_variance", pow(0.003, 2));
-  this->declare_parameter("max_variance", pow(0.03, 2));
-  this->declare_parameter("mahalanobis_distance_threshold", 2.5);
-  this->declare_parameter("multi_height_noise", pow(0.003, 2));
-  this->declare_parameter("min_horizontal_variance", pow(resolution / 2.0, 2));
-  this->declare_parameter("max_horizontal_variance", 0.5);
-  this->declare_parameter("underlying_map_topic", std::string());
-  this->declare_parameter("enable_visibility_cleanup", true);
-  this->declare_parameter("enable_continuous_cleanup", false);
-  this->declare_parameter("scanning_duration", 1.0);
   this->declare_parameter("masked_replace_service_mask_layer_name", std::string("mask"));
 
   // Settings for initializing elevation map
@@ -297,30 +281,30 @@ bool ElevationMapping::readParameters() {
   }
 
   // ElevationMap parameters. TODO Move this to the elevation map class.
-  this->get_parameter("map_frame_id", mapFrameId_);
-  map_->setFrameId(mapFrameId_);
+  // this->get_parameter("map_frame_id", mapFrameId_);
+  // map_->setFrameId(mapFrameId_);
 
-  grid_map::Length length;
-  grid_map::Position position;
-  double resolution;
-  this->get_parameter("length_in_x", length(0));
-  this->get_parameter("length_in_y", length(1));
-  this->get_parameter("position_x", position.x());
-  this->get_parameter("position_y", position.y());
-  this->get_parameter("resolution", resolution);
-  map_->setGeometry(length, resolution, position);
+  // grid_map::Length length;
+  // grid_map::Position position;
+  // double resolution;
+  // this->get_parameter("length_in_x", length(0));
+  // this->get_parameter("length_in_y", length(1));
+  // this->get_parameter("position_x", position.x());
+  // this->get_parameter("position_y", position.y());
+  // this->get_parameter("resolution", resolution);
+  // map_->setGeometry(length, resolution, position);
 
-  this->get_parameter("min_variance", map_->minVariance_);
-  this->get_parameter("max_variance", map_->maxVariance_);
-  this->get_parameter("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_);
-  this->get_parameter("multi_height_noise", map_->multiHeightNoise_);
-  this->get_parameter("min_horizontal_variance", map_->minHorizontalVariance_);
-  this->get_parameter("max_horizontal_variance", map_->maxHorizontalVariance_);
-  this->get_parameter("underlying_map_topic", map_->underlyingMapTopic_);
-  this->get_parameter("enable_visibility_cleanup", map_->enableVisibilityCleanup_);
-  this->get_parameter("enable_continuous_cleanup", map_->enableContinuousCleanup_);
-  this->get_parameter("scanning_duration", map_->scanningDuration_);
-  this->get_parameter("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_);
+  // this->get_parameter("min_variance", map_->minVariance_);
+  // this->get_parameter("max_variance", map_->maxVariance_);
+  // this->get_parameter("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_);
+  // this->get_parameter("multi_height_noise", map_->multiHeightNoise_);
+  // this->get_parameter("min_horizontal_variance", map_->minHorizontalVariance_);
+  // this->get_parameter("max_horizontal_variance", map_->maxHorizontalVariance_);
+  // this->get_parameter("underlying_map_topic", map_->underlyingMapTopic_);
+  // this->get_parameter("enable_visibility_cleanup", map_->enableVisibilityCleanup_);
+  // this->get_parameter("enable_continuous_cleanup", map_->enableContinuousCleanup_);
+  // this->get_parameter("scanning_duration", map_->scanningDuration_);
+  // this->get_parameter("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_);  // TODO Move this to the elevation map class?
 
   // Settings for initializing elevation map
   this->get_parameter("initialize_elevation_map", initializeElevationMap_);
@@ -685,7 +669,7 @@ bool ElevationMapping::initializeElevationMap() {
 
       // Listen to transform between mapFrameId_ and targetFrameInitSubmap_ and use z value for initialization
       try {
-        transform_msg = transformBuffer_->lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
+        transform_msg = transformBuffer_->lookupTransform(map_->getFrameId(), targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
         tf2::fromMsg(transform_msg, transform);
 
         RCLCPP_DEBUG_STREAM(this->get_logger(), "Initializing with x: " << transform.getOrigin().x() << " y: " << transform.getOrigin().y()
