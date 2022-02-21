@@ -39,7 +39,7 @@ namespace elevation_mapping {
  */
 class SensorProcessorBase {
  public:
-  using Ptr = std::unique_ptr<SensorProcessorBase>;
+  using UniquePtr = std::unique_ptr<SensorProcessorBase>;
   friend class ElevationMapping;
   friend class Input;
 
