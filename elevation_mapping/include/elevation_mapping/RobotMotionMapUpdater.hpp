@@ -58,7 +58,7 @@ class RobotMotionMapUpdater {
    * @param[in] time the time of the current update.
    * @return true if successful.
    */
-  bool update(ElevationMap& map, const Pose& robotPose, const PoseCovariance& robotPoseCovariance, const rclcpp::Time& time);
+  bool update(std::shared_ptr<ElevationMap> map, const Pose& robotPose, const PoseCovariance& robotPoseCovariance, const rclcpp::Time& time);
 
  private:
   /*!
