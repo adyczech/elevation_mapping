@@ -245,6 +245,11 @@ class ElevationMap {
 
  private:
   /*!
+   * @brief Declare parameters used for the elevation map
+   */
+  void declareParameters();
+
+  /*!
    * Fuses a region of the map.
    * @param topLeftIndex the top left index of the region.
    * @param size the size (in number of cells) of the region.
@@ -289,7 +294,7 @@ class ElevationMap {
   grid_map::GridMap underlyingMap_;
 
   //! Thread Pool to handle raw map postprocessing filter pipelines.
-  PostprocessorPool postprocessorPool_;
+  std::shared_ptr<PostprocessorPool> postprocessorPool_;
 
   //! True if underlying map has been set, false otherwise.
   bool hasUnderlyingMap_;

@@ -186,6 +186,12 @@ class ElevationMapping : public rclcpp::Node {
   void initializeNode();
 
   /*!
+   * @brief Declares the ROS parameters used
+   * 
+   */
+  void declareParameters();
+
+  /*!
    * Reads and verifies the ROS parameters.
    *
    * @return true if successful.

@@ -24,7 +24,10 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::Share
     outputTopic_, default_qos(1, maxNoUpdateDuration_)));
 
   // Setup filter chain.
-  if (!node.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, node)) {
+  if (!node_->has_parameter(filterChainParametersName_) || !filterChain_.configure(
+    filterChainParametersName_,
+    node_->get_node_logging_interface(),
+    node_->get_node_parameters_interface())) {
     RCLCPP_WARN(node_->get_logger(), "Could not configure the filter chain. Will publish the raw elevation map without postprocessing!");
     return;
   }
@@ -35,17 +38,22 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::Share
 PostprocessingPipelineFunctor::~PostprocessingPipelineFunctor() = default;
 
 void PostprocessingPipelineFunctor::readParameters() {
+  node_->declare_parameter("output_topic", std::string("elevation_map_raw"));
+  node_->declare_parameter("postprocessor_pipeline_name", std::string("postprocessor_pipeline"));
+  node_->get_parameter("output_topic", outputTopic_);
+  node_->get_parameter("postprocessor_pipeline_name", filterChainParametersName_);
+
   double minUpdateRate;
-  node_->get_parameter("min_update_rate", maxNoUpdateDuration_);  // Should already be declared
+  if (!node_->get_parameter("min_update_rate", maxNoUpdateDuration_)) {
+    RCLCPP_ERROR(node_->get_logger(), 
+      "Failed to read the 'min_update_rate parameter'. Has it been declared (ElevationMapping::readParameters)?");
+  }
   if (minUpdateRate == 0.0) {
     maxNoUpdateDuration_ = rclcpp::Duration::from_nanoseconds(0);
     RCLCPP_WARN(this->get_logger(), "Rate for publishing the map is zero.");
   } else {
     maxNoUpdateDuration_ = rclcpp::Duration::from_seconds(1.0 / minUpdateRate);
   }
-
-  node_->param("output_topic", outputTopic_, std::string("elevation_map_raw"));
-  node_->param("postprocessor_pipeline_name", filterChainParametersName_, std::string("postprocessor_pipeline"));
 }
 
 grid_map::GridMap PostprocessingPipelineFunctor::operator()(GridMap& inputMap) {

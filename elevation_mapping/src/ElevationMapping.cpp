@@ -69,6 +69,7 @@ ElevationMapping::ElevationMapping(const rclcpp::NodeOptions & options)
 void ElevationMapping::initializeNode() {
   RCLCPP_DEBUG(this->get_logger(), "Node initialization timer callback executed.");
 
+  declareParameters();
   readParameters();
 
   map_ = std::make_shared<ElevationMap>(shared_from_this(), maxNoUpdateDuration_);
@@ -148,13 +149,13 @@ void ElevationMapping::setupServices() {
 }
 
 void ElevationMapping::setupTimers() {
-  // TODO(SivertHavso): Double check reentrant is fine here
+  // TODO(SivertHavso): Check whether reentrant can be used here
   fusionCallbackGroup_ = create_callback_group(
-    rclcpp::CallbackGroupType::Reentrant,
+    rclcpp::CallbackGroupType::MutuallyExclusive,
     true
   );
   visibilityCleanupCallbackGroup_ = create_callback_group(
-    rclcpp::CallbackGroupType::Reentrant,
+    rclcpp::CallbackGroupType::MutuallyExclusive,
     true
   );
 
@@ -193,34 +194,82 @@ void ElevationMapping::setupTimers() {
 
 ElevationMapping::~ElevationMapping() {}
 
-bool ElevationMapping::readParameters() {
+void ElevationMapping::declareParameters() {
   // ElevationMapping parameters.
-  this->param("point_cloud_topic", pointCloudTopic_, std::string("/points"));
-  this->param("robot_pose_with_covariance_topic", robotPoseTopic_, std::string("/pose"));
-  this->param("track_point_frame_id", trackPointFrameId_, std::string("/robot"));
-  this->param("track_point_x", trackPoint_.x(), 0.0);
-  this->param("track_point_y", trackPoint_.y(), 0.0);
-  this->param("track_point_z", trackPoint_.z(), 0.0);
+  rcl_interfaces::msg::ParameterDescriptor robot_pose_cache_size_desc;
+  robot_pose_cache_size_desc.integer_range.resize(1);
+  auto & integer_range = robot_pose_cache_size_desc.integer_range.at(0);
+  integer_range.from_value = 0;
+  integer_range.to_value = std::numeric_limits<int>::max();
+  integer_range.step = 1;
 
-  this->param("robot_pose_cache_size", robotPoseCacheSize_, 200);
-  RCLCPP_ASSERT(robotPoseCacheSize_ >= 0);
+  this->declare_parameter("robot_pose_cache_size", 200, robot_pose_cache_size_desc);
+  this->declare_parameter("robot_pose_with_covariance_topic", std::string("/pose"));
+  this->declare_parameter("robot_base_frame_id", std::string("base_link"));
+  this->declare_parameter("track_point_frame_id", std::string("/robot"));
+  this->declare_parameter("track_point_x", 0.0);
+  this->declare_parameter("track_point_y", 0.0);
+  this->declare_parameter("track_point_z", 0.0);
+  this->declare_parameter("min_update_rate", 2.0);
+  this->declare_parameter("time_tolerance", 0.0);
+  this->declare_parameter("fused_map_publishing_rate", 1.0);
+  this->declare_parameter("visibility_cleanup_rate", 1.0);
+
+  // ElevationMap parameters. TODO Move this to the elevation map class.
+  this->declare_parameter("map_frame_id", std::string("map"));
+  this->declare_parameter("length_in_x", 1.5);
+  this->declare_parameter("length_in_y", 1.5);
+  this->declare_parameter("position_x", 0.0);
+  this->declare_parameter("position_y", 0.0);
+  this->declare_parameter("resolution", 0.01);
+  this->declare_parameter("min_variance", pow(0.003, 2));
+  this->declare_parameter("max_variance", pow(0.03, 2));
+  this->declare_parameter("mahalanobis_distance_threshold", 2.5);
+  this->declare_parameter("multi_height_noise", pow(0.003, 2));
+  this->declare_parameter("min_horizontal_variance", pow(resolution / 2.0, 2));
+  this->declare_parameter("max_horizontal_variance", 0.5);
+  this->declare_parameter("underlying_map_topic", std::string());
+  this->declare_parameter("enable_visibility_cleanup", true);
+  this->declare_parameter("enable_continuous_cleanup", false);
+  this->declare_parameter("scanning_duration", 1.0);
+  this->declare_parameter("masked_replace_service_mask_layer_name", std::string("mask"));
+
+  // Settings for initializing elevation map
+  this->declare_parameter("initialize_elevation_map", false);
+  this->declare_parameter("initialization_method", 0);
+  this->declare_parameter("length_in_x_init_submap", 1.2);
+  this->declare_parameter("length_in_y_init_submap", 1.8);
+  this->declare_parameter("margin_init_submap", 0.3);
+  this->declare_parameter("init_submap_height_offset", 0.0);
+  this->declare_parameter("target_frame_init_submap", std::string("footprint"));
+}
+
+bool ElevationMapping::readParameters() {
+  // TODO(SivertHavso): add check that parameters have been declared.
+  // ElevationMapping parameters.
+  this->get_parameter("robot_pose_with_covariance_topic", robotPoseTopic_);
+  this->get_parameter("track_point_frame_id", trackPointFrameId_);
+  this->get_parameter("track_point_x", trackPoint_.x());
+  this->get_parameter("track_point_y", trackPoint_.y());
+  this->get_parameter("track_point_z", trackPoint_.z());
+  this->get_parameter("robot_pose_cache_size", robotPoseCacheSize_);
 
   double minUpdateRate;
-  this->param("min_update_rate", minUpdateRate, 2.0);
+  this->get_parameter("min_update_rate", minUpdateRate);
   if (minUpdateRate == 0.0) {
     maxNoUpdateDuration_ = rclcpp::Duration::from_nanoseconds(0);
     RCLCPP_WARN(this->get_logger(), "Rate for publishing the map is zero.");
   } else {
     maxNoUpdateDuration_ = rclcpp::Duration::from_seconds(1.0 / minUpdateRate);
   }
-  RCLCPP_ASSERT(!maxNoUpdateDuration_.isZero());
+  // ROS_ASSERT(!maxNoUpdateDuration_.isZero());  // FIXME
 
   double timeTolerance;
-  this->param("time_tolerance", timeTolerance, 0.0);
+  this->get_parameter("time_tolerance", timeTolerance);
   timeTolerance_= rclcpp::Duration::from_seconds(timeTolerance);
 
   double fusedMapPublishingRate;
-  this->param("fused_map_publishing_rate", fusedMapPublishingRate, 1.0);
+  this->get_parameter("fused_map_publishing_rate", fusedMapPublishingRate);
   if (fusedMapPublishingRate == 0.0) {
     fusedMapPublishTimerDuration_ = rclcpp::Duration::from_nanoseconds(0);
     RCLCPP_WARN(
@@ -235,7 +284,7 @@ bool ElevationMapping::readParameters() {
   }
 
   double visibilityCleanupRate;
-  this->param("visibility_cleanup_rate", visibilityCleanupRate, 1.0);
+  this->get_parameter("fused_map_publishing_rate", visibilityCleanupRate);
   if (visibilityCleanupRate == 0.0) {
     visibilityCleanupTimerDuration_ = rclcpp::Duration::from_nanoseconds(0);
     RCLCPP_WARN(this->get_logger(), "Rate for visibility cleanup is zero and therefore disabled.");
@@ -245,39 +294,39 @@ bool ElevationMapping::readParameters() {
   }
 
   // ElevationMap parameters. TODO Move this to the elevation map class.
-  this->param("map_frame_id", mapFrameId_, std::string("/map"));
+  this->get_parameter("map_frame_id", mapFrameId_);
   map_->setFrameId(mapFrameId_);
 
   grid_map::Length length;
   grid_map::Position position;
   double resolution;
-  this->param("length_in_x", length(0), 1.5);
-  this->param("length_in_y", length(1), 1.5);
-  this->param("position_x", position.x(), 0.0);
-  this->param("position_y", position.y(), 0.0);
-  this->param("resolution", resolution, 0.01);
+  this->get_parameter("length_in_x", length(0));
+  this->get_parameter("length_in_y", length(1));
+  this->get_parameter("position_x", position.x());
+  this->get_parameter("position_y", position.y());
+  this->get_parameter("resolution", resolution);
   map_->setGeometry(length, resolution, position);
 
-  this->param("min_variance", map_->minVariance_, pow(0.003, 2));
-  this->param("max_variance", map_->maxVariance_, pow(0.03, 2));
-  this->param("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_, 2.5);
-  this->param("multi_height_noise", map_->multiHeightNoise_, pow(0.003, 2));
-  this->param("min_horizontal_variance", map_->minHorizontalVariance_, pow(resolution / 2.0, 2));  // two-sigma
-  this->param("max_horizontal_variance", map_->maxHorizontalVariance_, 0.5);
-  this->param("underlying_map_topic", map_->underlyingMapTopic_, std::string());
-  this->param("enable_visibility_cleanup", map_->enableVisibilityCleanup_, true);
-  this->param("enable_continuous_cleanup", map_->enableContinuousCleanup_, false);
-  this->param("scanning_duration", map_->scanningDuration_, 1.0);
-  this->param("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_, std::string("mask"));
+  this->get_parameter("min_variance", map_->minVariance_);
+  this->get_parameter("max_variance", map_->maxVariance_);
+  this->get_parameter("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_);
+  this->get_parameter("multi_height_noise", map_->multiHeightNoise_);
+  this->get_parameter("min_horizontal_variance", map_->minHorizontalVariance_);
+  this->get_parameter("max_horizontal_variance", map_->maxHorizontalVariance_);
+  this->get_parameter("underlying_map_topic", map_->underlyingMapTopic_);
+  this->get_parameter("enable_visibility_cleanup", map_->enableVisibilityCleanup_);
+  this->get_parameter("enable_continuous_cleanup", map_->enableContinuousCleanup_);
+  this->get_parameter("scanning_duration", map_->scanningDuration_);
+  this->get_parameter("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_);
 
   // Settings for initializing elevation map
-  this->param("initialize_elevation_map", initializeElevationMap_, false);
-  this->param("initialization_method", initializationMethod_, 0);
-  this->param("length_in_x_init_submap", lengthInXInitSubmap_, 1.2);
-  this->param("length_in_y_init_submap", lengthInYInitSubmap_, 1.8);
-  this->param("margin_init_submap", marginInitSubmap_, 0.3);
-  this->param("init_submap_height_offset", initSubmapHeightOffset_, 0.0);
-  this->param("target_frame_init_submap", targetFrameInitSubmap_, std::string("/footprint"));
+  this->get_parameter("initialize_elevation_map", initializeElevationMap_);
+  this->get_parameter("initialization_method", initializationMethod_);
+  this->get_parameter("length_in_x_init_submap", lengthInXInitSubmap_);
+  this->get_parameter("length_in_y_init_submap", lengthInYInitSubmap_);
+  this->get_parameter("margin_init_submap", marginInitSubmap_);
+  this->get_parameter("init_submap_height_offset", initSubmapHeightOffset_);
+  this->get_parameter("target_frame_init_submap", targetFrameInitSubmap_);
 
   if (!robotMotionMapUpdater_->readParameters()) {
     return false;

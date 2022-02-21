@@ -39,7 +39,6 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
       rawMap_({"elevation", "variance", "horizontal_variance_x", "horizontal_variance_y", "horizontal_variance_xy", "color", "time",
                "dynamic_time", "lowest_scan_point", "sensor_x_at_lowest_scan", "sensor_y_at_lowest_scan", "sensor_z_at_lowest_scan"}),
       fusedMap_({"elevation", "upper_bound", "lower_bound", "color"}),
-      postprocessorPool_(node.param("postprocessor_num_threads", 1), node_),
       hasUnderlyingMap_(false),
       minVariance_(0.000009),
       maxVariance_(0.0009),
@@ -57,6 +56,10 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
   rawMap_.setBasicLayers({"elevation", "variance"});
   fusedMap_.setBasicLayers({"elevation", "upper_bound", "lower_bound"});
   clear();
+
+  declareParameters();
+
+  postprocessorPool_ = std::make_shared<PostprocessorPool>(node_->get_parameter("postprocessor_num_threads"), node_),
 
   elevationMapFusedPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
     "elevation_map",
@@ -77,6 +80,10 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
 }
 
 ElevationMap::~ElevationMap() = default;
+
+void ElevationMapping::declareParameters() {
+  node_->declare_parameter("postprocessor_num_threads", 1);
+}
 
 void ElevationMap::setGeometry(const grid_map::Length& length, const double& resolution, const grid_map::Position& position) {
   std::scoped_lock scopedLockForRawData(rawMapMutex_);
