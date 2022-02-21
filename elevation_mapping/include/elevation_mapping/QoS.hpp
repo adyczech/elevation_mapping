@@ -29,13 +29,21 @@ static const rmw_qos_profile_t qos_grid_map =
 /**
  * @brief Get a rclcpp::QoS object with the default elevation map settings.
  * 
- * @param depth Set a custom size of the message queue. Defaults to 1
+ * @param[in] depth Set a custom size of the message queue. Defaults to 1
+ * @param[in] deadline Set a custom deadline. Default is no deadline.
  * @return rclcpp::QoS default elevation map QoS
  */
-inline rclcpp::QoS default_qos(size_t depth = 1) {
+inline rclcpp::QoS default_qos(
+  size_t depth = 1, 
+  const rclcpp::Duration deadline = rclcpp::Duration::from_nanoseconds(0)) {
+  // First create a rmw_qos_profile_t to set the depth - rclcpp::QoS has no set depth function
   auto rmw_qos = qos_grid_map;
   rmw_qos.depth = depth;
-  return rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos_grid_map));
+
+  // Create a rclcpp::QoS object to set the deadline and return it
+  auto qos = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos));
+  qos.deadline(deadline);
+  return qos;
 } 
 
 }

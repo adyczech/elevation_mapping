@@ -69,11 +69,12 @@ ElevationMapping::ElevationMapping(const rclcpp::NodeOptions & options)
 void ElevationMapping::initializeNode() {
   RCLCPP_DEBUG(this->get_logger(), "Node initialization timer callback executed.");
 
-  map_ = std::make_shared<ElevationMap>(shared_from_this());
+  readParameters();
+
+  map_ = std::make_shared<ElevationMap>(shared_from_this(), maxNoUpdateDuration_);
   robotMotionMapUpdater_ = std::make_shared<RobotMotionMapUpdater>(shared_from_this());
   inputSources_ = std::make_shared<InputSourceManager>(shared_from_this());
 
-  readParameters();
   setupSubscribers();
   setupServices();
   setupTimers();
@@ -147,11 +148,14 @@ void ElevationMapping::setupServices() {
 }
 
 void ElevationMapping::setupTimers() {
+  // TODO(SivertHavso): Double check reentrant is fine here
   fusionCallbackGroup_ = create_callback_group(
-    rclcpp::CallbackGroupType::MutuallyExclusive
+    rclcpp::CallbackGroupType::Reentrant,
+    true
   );
   visibilityCleanupCallbackGroup_ = create_callback_group(
-    rclcpp::CallbackGroupType::MutuallyExclusive
+    rclcpp::CallbackGroupType::Reentrant,
+    true
   );
 
   mapUpdateTimer_ = rclcpp::create_timer(

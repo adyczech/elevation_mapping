@@ -79,6 +79,9 @@ class PostprocessingPipelineFunctor {
   //! Grid map publisher.
   rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr publisher_;
 
+  //! Maximum time that the map will not be published.
+  rclcpp::Duration maxNoUpdateDuration_;
+
   //! Filter chain.
   filters::FilterChain<grid_map::GridMap> filterChain_;
 

@@ -34,7 +34,7 @@ float intAsFloat(const uint32_t input) {
 
 namespace elevation_mapping {
 
-ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
+ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration deadline)
     : node_(node),
       rawMap_({"elevation", "variance", "horizontal_variance_x", "horizontal_variance_y", "horizontal_variance_xy", "color", "time",
                "dynamic_time", "lowest_scan_point", "sensor_x_at_lowest_scan", "sensor_y_at_lowest_scan", "sensor_z_at_lowest_scan"}),
@@ -60,7 +60,7 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node)
 
   elevationMapFusedPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
     "elevation_map",
-    default_qos(1));
+    default_qos(1, deadline));
 
   if (!underlyingMapTopic_.empty()) {
     underlyingMapSubscriber_ = node_->create_subscription(

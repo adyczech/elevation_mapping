@@ -20,7 +20,8 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::Share
   // TODO (magnus) Add logic when setting up failed. What happens actually if it is not configured?
   readParameters();
 
-  publisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(outputTopic_, default_qos()));
+  publisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
+    outputTopic_, default_qos(1, maxNoUpdateDuration_)));
 
   // Setup filter chain.
   if (!node.hasParam(filterChainParametersName_) || !filterChain_.configure(filterChainParametersName_, node)) {
@@ -34,6 +35,15 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::Share
 PostprocessingPipelineFunctor::~PostprocessingPipelineFunctor() = default;
 
 void PostprocessingPipelineFunctor::readParameters() {
+  double minUpdateRate;
+  node_->get_parameter("min_update_rate", maxNoUpdateDuration_);  // Should already be declared
+  if (minUpdateRate == 0.0) {
+    maxNoUpdateDuration_ = rclcpp::Duration::from_nanoseconds(0);
+    RCLCPP_WARN(this->get_logger(), "Rate for publishing the map is zero.");
+  } else {
+    maxNoUpdateDuration_ = rclcpp::Duration::from_seconds(1.0 / minUpdateRate);
+  }
+
   node_->param("output_topic", outputTopic_, std::string("elevation_map_raw"));
   node_->param("postprocessor_pipeline_name", filterChainParametersName_, std::string("postprocessor_pipeline"));
 }

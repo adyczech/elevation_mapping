@@ -38,7 +38,7 @@ class ElevationMap {
   /*!
    * Constructor.
    */
-  explicit ElevationMap(rclcpp::Node::SharedPtr node);
+  explicit ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration deadline);
 
   /*!
    * Destructor.
