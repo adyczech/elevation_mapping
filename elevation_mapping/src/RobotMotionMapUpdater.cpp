@@ -28,7 +28,7 @@ bool RobotMotionMapUpdater::readParameters() {
   return true;
 }
 
-bool RobotMotionMapUpdater::update(std::shared_ptr<ElevationMap> map, const Pose& robotPose, const PoseCovariance& robotPoseCovariance,
+bool RobotMotionMapUpdater::update(ElevationMap::SharedPtr map, const Pose& robotPose, const PoseCovariance& robotPoseCovariance,
                                    const rclcpp::Time& time) {
   const PoseCovariance robotPoseCovarianceScaled = covarianceScale_ * robotPoseCovariance;
 

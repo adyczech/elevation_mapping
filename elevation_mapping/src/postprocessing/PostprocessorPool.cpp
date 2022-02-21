@@ -65,7 +65,7 @@ void PostprocessorPool::wrapTask(size_t serviceIndex) {
   }
   // Suppress all exceptions.
   catch (const std::exception& exception) {
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "Postprocessor pipeline, thread " << serviceIndex << " experienced an error: " << exception.what());
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("postprocessor_pool"), "Postprocessor pipeline, thread " << serviceIndex << " experienced an error: " << exception.what());
   }
 
   // Task has finished, so increment count of available threads.
@@ -75,7 +75,7 @@ void PostprocessorPool::wrapTask(size_t serviceIndex) {
 
 bool PostprocessorPool::pipelineHasSubscribers() const {
   return std::all_of(workers_.cbegin(), workers_.cend(),
-                     [](const std::unique_ptr<PostprocessingWorker>& worker) { return worker->hasSubscribers(); });
+                     [](const PostprocessingWorker::UniquePtr& worker) { return worker->hasSubscribers(); });
 }
 
 }  // namespace elevation_mapping

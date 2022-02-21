@@ -258,7 +258,7 @@ class ElevationMapping : public rclcpp::Node {
 
  protected:
   //! Input sources.
-  std::shared_ptr<InputSourceManager> inputSources_;
+  InputSourceManager::SharedPtr inputSources_;
   
   //! ROS subscribers.
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
@@ -298,7 +298,7 @@ class ElevationMapping : public rclcpp::Node {
   std::string robotPoseTopic_;
 
   //! Elevation map.
-  std::shared_ptr<ElevationMap> map_;
+  ElevationMap::SharedPtr map_;
 
   //! Robot motion elevation map updater.
   std::shared_ptr<RobotMotionMapUpdater> robotMotionMapUpdater_;

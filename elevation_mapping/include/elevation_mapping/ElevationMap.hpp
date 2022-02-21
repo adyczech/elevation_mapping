@@ -35,6 +35,7 @@ namespace elevation_mapping {
  */
 class ElevationMap {
  public:
+  using SharedPtr = std::shared_ptr<ElevationMap>;
   /*!
    * Constructor.
    */
@@ -294,7 +295,7 @@ class ElevationMap {
   grid_map::GridMap underlyingMap_;
 
   //! Thread Pool to handle raw map postprocessing filter pipelines.
-  std::shared_ptr<PostprocessorPool> postprocessorPool_;
+  PostprocessorPool::SharedPtr postprocessorPool_;
 
   //! True if underlying map has been set, false otherwise.
   bool hasUnderlyingMap_;

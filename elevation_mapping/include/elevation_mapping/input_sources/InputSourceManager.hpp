@@ -21,6 +21,7 @@ class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
  */
 class InputSourceManager {
  public:
+  using SharedPtr = std::shared_ptr<InputSourceManager>;
   /**
    * @brief Constructor.
    * @param node Used to resolve the namespace and setup the subscribers.

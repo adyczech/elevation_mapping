@@ -32,6 +32,7 @@ namespace elevation_mapping {
  */
 class PostprocessorPool {
  public:
+  using SharedPtr = std::shared_ptr<PostprocessorPool>;
   using GridMap = grid_map::GridMap;
 
   /**
@@ -70,7 +71,7 @@ class PostprocessorPool {
   void wrapTask(size_t serviceIndex);
 
   // Post-processing workers.
-  std::vector<std::unique_ptr<PostprocessingWorker>> workers_;
+  std::vector<PostprocessingWorker::UniquePtr> workers_;
 
   //! Container holding the service ids which have corresponding threads. The only object that is used in a mutual exclusive manner and must
   //! be protected by availableServicesMutex_.

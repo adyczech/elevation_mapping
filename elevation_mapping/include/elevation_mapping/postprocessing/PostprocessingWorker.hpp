@@ -27,6 +27,7 @@ namespace elevation_mapping {
  */
 class PostprocessingWorker {
  public:
+  using UniquePtr = std::unique_ptr<PostprocessingWorker>;
   using GridMap = grid_map::GridMap;
 
   explicit PostprocessingWorker(rclcpp::Node::SharedPtr node);
