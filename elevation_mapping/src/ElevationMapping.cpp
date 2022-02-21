@@ -784,4 +784,17 @@ void ElevationMapping::stopMapUpdateTimer() {
   mapUpdateTimer_->cancel();
 }
 
+rclcpp::CallbackGroup::SharedPtr ElevationMapping::getDefaultCallbackGroup() {
+  return this->get_node_base_interface()->get_default_callback_group();
+}
+
+rclcpp::CallbackGroup::SharedPtr ElevationMapping::getFusionCallbackGroup() {
+  return fusionCallbackGroup_;
+}
+
+rclcpp::CallbackGroup::SharedPtr ::getVisibilityCleanupCallbackGroup() {
+  return visibilityCleanupCallbackGroup_;
+}
+
+
 }  // namespace elevation_mapping

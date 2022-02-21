@@ -170,6 +170,12 @@ class ElevationMapping : public rclcpp::Node {
    */
   bool loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request, grid_map_msgs::srv::ProcessFile::Response::SharedPtr response);
 
+  rclcpp::CallbackGroup::SharedPtr getFusionCallbackGroup();
+
+  rclcpp::CallbackGroup::SharedPtr getVisibilityCleanupCallbackGroup();
+
+  rclcpp::CallbackGroup::SharedPtr getDefaultCallbackGroup();
+
  private:
   /*!
    * Initializes the node.
