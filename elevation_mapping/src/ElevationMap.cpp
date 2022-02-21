@@ -59,17 +59,17 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
 
   declareParameters();
 
-  postprocessorPool_ = std::make_shared<PostprocessorPool>(node_->get_parameter("postprocessor_num_threads"), node_),
+  postprocessorPool_ = std::make_shared<PostprocessorPool>(node_->get_parameter("postprocessor_num_threads").as_int(), node_),
 
   elevationMapFusedPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
     "elevation_map",
     default_qos(1, deadline));
 
   if (!underlyingMapTopic_.empty()) {
-    underlyingMapSubscriber_ = node_->create_subscription(
+    underlyingMapSubscriber_ = node_->create_subscription<grid_map_msgs::msg::GridMap>(
       underlyingMapTopic_,
       default_qos(1),
-      &ElevationMap::underlyingMapCallback, this);
+      std::bind(&ElevationMap::underlyingMapCallback, this, std::placeholders::_1));
   }
   // TODO(max): if (enableVisibilityCleanup_) when parameter cleanup is ready.
   visibilityCleanupMapPublisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
@@ -81,7 +81,7 @@ ElevationMap::ElevationMap(rclcpp::Node::SharedPtr node, const rclcpp::Duration 
 
 ElevationMap::~ElevationMap() = default;
 
-void ElevationMapping::declareParameters() {
+void ElevationMap::declareParameters() {
   node_->declare_parameter("postprocessor_num_threads", 1);
 }
 
@@ -574,7 +574,7 @@ bool ElevationMap::postprocessAndPublishRawElevationMap() {
   }
   std::scoped_lock scopedLock(rawMapMutex_);
   grid_map::GridMap rawMapCopy = rawMap_;
-  return postprocessorPool_.runTask(rawMapCopy);
+  return postprocessorPool_->runTask(rawMapCopy);
 }
 
 bool ElevationMap::publishFusedElevationMap() {
@@ -700,16 +700,16 @@ const std::string& ElevationMap::getFrameId() {
 }
 
 bool ElevationMap::hasRawMapSubscribers() const {
-  return postprocessorPool_.pipelineHasSubscribers();
+  return postprocessorPool_->pipelineHasSubscribers();
 }
 
 bool ElevationMap::hasFusedMapSubscribers() const {
   return elevationMapFusedPublisher_->get_subscription_count() > 0;
 }
 
-void ElevationMap::underlyingMapCallback(const grid_map_msgs::msg::GridMap& underlyingMap) {
+void ElevationMap::underlyingMapCallback(grid_map_msgs::msg::GridMap::UniquePtr underlyingMap) {
   RCLCPP_INFO(node_->get_logger(), "Updating underlying map.");
-  grid_map::GridMapRosConverter::fromMessage(underlyingMap, underlyingMap_);
+  grid_map::GridMapRosConverter::fromMessage(*underlyingMap, underlyingMap_);
   if (underlyingMap_.getFrameId() != rawMap_.getFrameId()) {
     RCLCPP_ERROR_STREAM(node_->get_logger(), "The underlying map does not have the same map frame ('" << underlyingMap_.getFrameId() << "') as the elevation map ('"
                                                                               << rawMap_.getFrameId() << "').");

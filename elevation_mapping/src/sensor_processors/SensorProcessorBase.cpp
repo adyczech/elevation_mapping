@@ -44,6 +44,7 @@ SensorProcessorBase::SensorProcessorBase(rclcpp::Node::SharedPtr node, const Gen
   transformationSensorToMap_.setIdentity();
   generalParameters_ = generalConfig;
   RCLCPP_DEBUG(
+      node_->get_logger(),
       "Sensor processor general parameters are:"
       "\n\t- robot_base_frame_id: %s"
       "\n\t- map_frame_id: %s",

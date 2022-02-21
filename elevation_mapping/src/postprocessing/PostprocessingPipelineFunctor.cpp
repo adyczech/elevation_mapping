@@ -15,13 +15,18 @@
 
 namespace elevation_mapping {
 
+using namespace std::literals::chrono_literals;
+
 PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(rclcpp::Node::SharedPtr node)
-    : node_(node), filterChain_("grid_map::GridMap"), filterChainConfigured_(false) {
+    : node_(node),
+    maxNoUpdateDuration_(0ns),
+    filterChain_("grid_map::GridMap"), 
+    filterChainConfigured_(false) {
   // TODO (magnus) Add logic when setting up failed. What happens actually if it is not configured?
   readParameters();
 
   publisher_ = node_->create_publisher<grid_map_msgs::msg::GridMap>(
-    outputTopic_, default_qos(1, maxNoUpdateDuration_)));
+    outputTopic_, default_qos(1, maxNoUpdateDuration_));
 
   // Setup filter chain.
   if (!node_->has_parameter(filterChainParametersName_) || !filterChain_.configure(
@@ -44,13 +49,13 @@ void PostprocessingPipelineFunctor::readParameters() {
   node_->get_parameter("postprocessor_pipeline_name", filterChainParametersName_);
 
   double minUpdateRate;
-  if (!node_->get_parameter("min_update_rate", maxNoUpdateDuration_)) {
+  if (!node_->get_parameter("min_update_rate", minUpdateRate)) {
     RCLCPP_ERROR(node_->get_logger(), 
       "Failed to read the 'min_update_rate parameter'. Has it been declared (ElevationMapping::readParameters)?");
   }
   if (minUpdateRate == 0.0) {
     maxNoUpdateDuration_ = rclcpp::Duration::from_nanoseconds(0);
-    RCLCPP_WARN(this->get_logger(), "Rate for publishing the map is zero.");
+    RCLCPP_WARN(node_->get_logger(), "Rate for publishing the map is zero.");
   } else {
     maxNoUpdateDuration_ = rclcpp::Duration::from_seconds(1.0 / minUpdateRate);
   }

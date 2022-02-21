@@ -17,7 +17,6 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <boost/bind.hpp>
 #include <grid_map_ros/grid_map_ros.hpp>
 #include <kindr/Core>
 #include <kindr_ros/kindr_ros.hpp>
@@ -40,7 +39,11 @@ ElevationMapping::ElevationMapping(const rclcpp::NodeOptions & options)
       robotPoseCacheSize_(200),
       ignoreRobotMotionUpdates_(false),
       updatesEnabled_(true),
+      maxNoUpdateDuration_(0ns),
+      timeTolerance_(0ns),
+      fusedMapPublishTimerDuration_(0ns),
       isContinuouslyFusing_(false),
+      visibilityCleanupTimerDuration_(0ns),
       receivedFirstMatchingPointcloudAndPose_(false),
       initializeElevationMap_(false),
       initializationMethod_(0),
@@ -82,7 +85,7 @@ void ElevationMapping::initializeNode() {
 
   initialize();
 
-  initTimer_.cancel();  // Cancel the timer, as it is no longer needed
+  initTimer_->cancel();  // Cancel the timer, as it is no longer needed
 
   RCLCPP_INFO(this->get_logger(), "Successfully launched node.");
 }
@@ -346,7 +349,7 @@ bool ElevationMapping::initialize() {
   return true;
 }
 
-void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2::UniquePtr pointCloudMsg, bool publishPointCloud,
+void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishPointCloud,
                                           const SensorProcessorBase::UniquePtr& sensorProcessor) {
   RCLCPP_DEBUG(this->get_logger(), "Processing data from: %s", pointCloudMsg->header.frame_id.c_str());
   if (!updatesEnabled_) {
@@ -366,7 +369,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2::U
   // Check if point cloud has corresponding robot pose at the beginning
   if (!receivedFirstMatchingPointcloudAndPose_) {
     const double oldestPoseTime = robotPoseCache_.getOldestTime().seconds();
-    const double currentPointCloudTime = pointCloudMsg->header.stamp.seconds();
+    const double currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp, RCL_ROS_TIME).seconds();
 
     if (currentPointCloudTime < oldestPoseTime) {
       RCLCPP_WARN_THROTTLE(
@@ -399,8 +402,7 @@ void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2::U
   Eigen::Matrix<double, 6, 6> robotPoseCovariance;
   robotPoseCovariance.setZero();
   if (!ignoreRobotMotionUpdates_) {
-    boost::shared_ptr<geometry_msgs::msg::PoseWithCovarianceStamped const> poseMessage =
-        robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTime_);
+    auto poseMessage = robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTime_);
     if (!poseMessage) {
       // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
       if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTime_.seconds()) {
@@ -477,7 +479,7 @@ void ElevationMapping::mapUpdateTimerCallback() {
     *this->get_clock(),
     10,
      "Updating of elevation map is disabled. (Warning message is throttled, 10s.)");
-    map_->setTimestamp(this->get_clock()->now()));
+    map_->setTimestamp(this->get_clock()->now());
     map_->postprocessAndPublishRawElevationMap();
     return;
   }
@@ -557,7 +559,7 @@ bool ElevationMapping::updatePrediction(const rclcpp::Time& time) {
   }
 
   // Get robot pose at requested time.
-  boost::shared_ptr<geometry_msgs::msg::PoseWithCovarianceStamped const> poseMessage = robotPoseCache_.getElemBeforeTime(time);
+  geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr poseMessage = robotPoseCache_.getElemBeforeTime(time);
   if (!poseMessage) {
     // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
     if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTime_.seconds()) {
@@ -591,7 +593,7 @@ bool ElevationMapping::updateMapLocation() {
   geometry_msgs::msg::PointStamped trackPointTransformed;
 
   try {
-    trackPointTransformed = transformBuffer_->.transform(trackPoint, map_->getFrameId());
+    trackPointTransformed = transformBuffer_->transform(trackPoint, map_->getFrameId());
   } catch (tf2::TransformException& ex) {
     RCLCPP_ERROR(this->get_logger(), "%s", ex.what());
     return false;
@@ -604,7 +606,7 @@ bool ElevationMapping::updateMapLocation() {
   return true;
 }
 
-bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request::SharedPtr request,
+bool ElevationMapping::getFusedSubmapServiceCallback(const grid_map_msgs::srv::GetGridMap::Request::SharedPtr request,
                                                      grid_map_msgs::srv::GetGridMap::Response::SharedPtr response) {
   grid_map::Position requestedSubmapPosition(request->position_x, request->position_y);
   grid_map::Length requestedSubmapLength(request->length_x, request->length_y);
@@ -622,20 +624,20 @@ bool ElevationMapping::getFusedSubmapServiceCallback(grid_map_msgs::srv::GetGrid
   }
 
   if (request->layers.empty()) {
-    grid_map::GridMapRosConverter::toMessage(subMap, response->map);
+    response->map = *(grid_map::GridMapRosConverter::toMessage(subMap));
   } else {
     std::vector<std::string> layers;
     for (const std::string& layer : request->layers) {
       layers.push_back(layer);
     }
-    grid_map::GridMapRosConverter::toMessage(subMap, layers, response->map);
+    response->map = *(grid_map::GridMapRosConverter::toMessage(subMap, layers));
   }
 
   RCLCPP_DEBUG(this->get_logger(), "Elevation submap responded with timestamp %f.", map_->getTimeOfLastFusion().seconds());
   return isSuccess;
 }
 
-bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMap::Request::SharedPtr request,
+bool ElevationMapping::getRawSubmapServiceCallback(const grid_map_msgs::srv::GetGridMap::Request::SharedPtr request,
                                                    grid_map_msgs::srv::GetGridMap::Response::SharedPtr response) {
   grid_map::Position requestedSubmapPosition(request->position_x, request->position_y);
   grid_map::Length requestedSubmapLength(request->length_x, request->length_y);
@@ -651,13 +653,13 @@ bool ElevationMapping::getRawSubmapServiceCallback(grid_map_msgs::srv::GetGridMa
   }
 
   if (request->layers.empty()) {
-    grid_map::GridMapRosConverter::toMessage(subMap, response->map);
+    response->map = *(grid_map::GridMapRosConverter::toMessage(subMap));
   } else {
     std::vector<std::string> layers;
     for (const std::string& layer : request->layers) {
       layers.push_back(layer);
     }
-    grid_map::GridMapRosConverter::toMessage(subMap, layers, response->map);
+    response->map = *(grid_map::GridMapRosConverter::toMessage(subMap, layers));
   }
   return isSuccess;
 }
@@ -683,7 +685,7 @@ bool ElevationMapping::initializeElevationMap() {
 
       // Listen to transform between mapFrameId_ and targetFrameInitSubmap_ and use z value for initialization
       try {
-        transform_msg = transformBuffer_->.lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
+        transform_msg = transformBuffer_->lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
         tf2::fromMsg(transform_msg, transform);
 
         RCLCPP_DEBUG_STREAM(this->get_logger(), "Initializing with x: " << transform.getOrigin().x() << " y: " << transform.getOrigin().y()
@@ -708,7 +710,7 @@ bool ElevationMapping::initializeElevationMap() {
   return true;
 }
 
-bool ElevationMapping::clearMapServiceCallback(std_srvs::srv::Empty::Request::SharedPtr /*request*/, std_srvs::srv::Empty::Response::SharedPtr /*response*/) {
+bool ElevationMapping::clearMapServiceCallback(const std_srvs::srv::Empty::Request::SharedPtr /*request*/, std_srvs::srv::Empty::Response::SharedPtr /*response*/) {
   RCLCPP_INFO(this->get_logger(), "Clearing map...");
   bool success = map_->clear();
   success &= initializeElevationMap();
@@ -717,7 +719,7 @@ bool ElevationMapping::clearMapServiceCallback(std_srvs::srv::Empty::Request::Sh
   return success;
 }
 
-bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridMap::Request::SharedPtr request,
+bool ElevationMapping::maskedReplaceServiceCallback(const grid_map_msgs::srv::SetGridMap::Request::SharedPtr request,
                                                     grid_map_msgs::srv::SetGridMap::Response::SharedPtr /*response*/) {
   RCLCPP_INFO(this->get_logger(), "Masked replacing of map.");
   grid_map::GridMap sourceMap;
@@ -769,14 +771,14 @@ bool ElevationMapping::maskedReplaceServiceCallback(grid_map_msgs::srv::SetGridM
   return true;
 }
 
-bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request,
+bool ElevationMapping::saveMapServiceCallback(const grid_map_msgs::srv::ProcessFile::Request::SharedPtr request,
                                               grid_map_msgs::srv::ProcessFile::Response::SharedPtr response) {
   RCLCPP_INFO(this->get_logger(), "Saving map to file.");
   std::scoped_lock scopedLock(map_->getFusedDataMutex());
   map_->fuseAll();
-  std::string topic = this->getNamespace() + "/elevation_map";
+  std::string topic = std::string(this->get_namespace()) + "/elevation_map";
   if (!request->topic_name.empty()) {
-    topic = this->getNamespace() + "/" + request->topic_name;
+    topic = std::string(this->get_namespace()) + "/" + request->topic_name;
   }
   response->success = static_cast<unsigned char>(grid_map::GridMapRosConverter::saveToBag(map_->getFusedGridMap(), request->file_path, topic));
   response->success = static_cast<unsigned char>(
@@ -785,13 +787,13 @@ bool ElevationMapping::saveMapServiceCallback(grid_map_msgs::srv::ProcessFile::R
   return static_cast<bool>(response->success);
 }
 
-bool ElevationMapping::loadMapServiceCallback(grid_map_msgs::srv::ProcessFile::Request::SharedPtr request,
+bool ElevationMapping::loadMapServiceCallback(const grid_map_msgs::srv::ProcessFile::Request::SharedPtr request,
                                               grid_map_msgs::srv::ProcessFile::Response::SharedPtr response) {
   RCLCPP_WARN(this->get_logger(), "Loading from bag file.");
   std::scoped_lock scopedLockFused(map_->getFusedDataMutex());
   std::scoped_lock scopedLockRaw(map_->getRawDataMutex());
 
-  std::string topic = this->getNamespace();
+  std::string topic(this->get_namespace());
   if (!request->topic_name.empty()) {
     topic += "/" + request->topic_name;
   } else {
@@ -841,7 +843,7 @@ rclcpp::CallbackGroup::SharedPtr ElevationMapping::getFusionCallbackGroup() {
   return fusionCallbackGroup_;
 }
 
-rclcpp::CallbackGroup::SharedPtr ::getVisibilityCleanupCallbackGroup() {
+rclcpp::CallbackGroup::SharedPtr ElevationMapping::getVisibilityCleanupCallbackGroup() {
   return visibilityCleanupCallbackGroup_;
 }
 
