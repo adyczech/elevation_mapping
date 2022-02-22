@@ -52,8 +52,7 @@ void PostprocessingPipelineFunctor::readParameters() {
   if (!node_->get_parameter("min_update_rate", minUpdateRate)) {
     RCLCPP_ERROR(node_->get_logger(), 
       "Failed to read the 'min_update_rate parameter'. Has it been declared (ElevationMapping::readParameters)?");
-  }
-  if (minUpdateRate == 0.0) {
+  } else if (minUpdateRate == 0.0) {
     maxNoUpdateDuration_ = rclcpp::Duration::from_nanoseconds(0);
     RCLCPP_WARN(node_->get_logger(), "Rate for publishing the map is zero.");
   } else {

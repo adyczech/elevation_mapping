@@ -37,17 +37,11 @@ class InputSourceManager {
   bool configureFromRos(const std::string& inputSourcesNamespace);
 
   /**
-   * @brief Registers the corresponding callback in the elevationMap.
-   * @param map The map we want to link the input sources to.
-   * @param callbacks pairs of callback type strings and their corresponding
-   * callback. E.g: std::make_pair("pointcloud",
-   * &ElevationMap::pointCloudCallback), std::make_pair("depthimage",
-   * &ElevationMap::depthImageCallback)
-   * @tparam MsgT The message types of the callbacks
-   * @return True if registering was successful.
+   * @brief Get all the input sources managed by the InputSourceManager
+   * 
+   * @return vector of input sources
    */
-  template <typename... MsgT>
-  bool registerCallbacks(ElevationMapping& map, std::pair<const char*, Input::CallbackT<MsgT>>... callbacks);
+  std::vector<Input> getSources() { return sources_; };
 
   /**
    * @return The number of successfully configured input sources.
@@ -61,33 +55,5 @@ class InputSourceManager {
   //! Node handle to load.
   rclcpp::Node::SharedPtr node_;
 };
-
-// Template definitions
-
-template <typename... MsgT>
-bool InputSourceManager::registerCallbacks(ElevationMapping& map, std::pair<const char*, Input::CallbackT<MsgT>>... callbacks) {
-  if (sources_.empty()) {
-    RCLCPP_WARN(node_->get_logger(), "Not registering any callbacks, no input sources given. Did you configure the InputSourceManager?");
-    return true;
-  }
-  for (Input& source : sources_) {
-    bool callbackRegistered = false;
-    for (auto& callback : {callbacks...}) {
-      if (source.getType() == callback.first) {
-        source.registerCallback(map, callback.second);
-        callbackRegistered = true;
-      }
-    }
-    if (not callbackRegistered) {
-      RCLCPP_WARN(node_->get_logger(), "The configuration contains input sources of an unknown type: %s", source.getType().c_str());
-      RCLCPP_WARN(node_->get_logger(), "Available types are:");
-      for (auto& callback : {callbacks...}) {
-        RCLCPP_WARN(node_->get_logger(), "- %s", callback.first);
-      }
-      return false;
-    }
-  }
-  return true;
-}
 
 }  // namespace elevation_mapping

@@ -44,6 +44,9 @@ enum class InitializationMethods { PlanarFloorInitializer };
  */
 class ElevationMapping : public rclcpp::Node {
  public:
+  template <typename MsgT>
+  using CallbackT = void (ElevationMapping::*)(const std::shared_ptr<const MsgT>, bool, const SensorProcessorBase::SharedPtr&);
+
   /*!
    * Constructor.
    *
@@ -63,8 +66,8 @@ class ElevationMapping : public rclcpp::Node {
    * @param publishPointCloud If true, publishes the pointcloud after updating the map.
    * @param sensorProcessor The sensorProcessor to use in this callback.
    */
-  void pointCloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishPointCloud,
-                          const SensorProcessorBase::UniquePtr& sensorProcessor);
+  void pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishPointCloud,
+                          const SensorProcessorBase::SharedPtr& sensorProcessor);  // TODO(SivertHavso): use const pointCloudMsg?
 
   /*!
    * Callback function for the update timer. Forces an update of the map from
@@ -170,7 +173,10 @@ class ElevationMapping : public rclcpp::Node {
    */
   bool loadMapServiceCallback(const grid_map_msgs::srv::ProcessFile::Request::SharedPtr request, grid_map_msgs::srv::ProcessFile::Response::SharedPtr response);
 
+  // TODO(SivertHavso): add comments
   rclcpp::CallbackGroup::SharedPtr getFusionCallbackGroup();
+
+  rclcpp::CallbackGroup::SharedPtr getPointcloudCallbackGroup();
 
   rclcpp::CallbackGroup::SharedPtr getVisibilityCleanupCallbackGroup();
 
@@ -256,6 +262,29 @@ class ElevationMapping : public rclcpp::Node {
    */
   bool isFusingEnabled();
 
+   /**
+   * @brief Registers the corresponding callback in the elevationMap.
+   * @param map The map we want to link the input sources to.
+   * @param callbacks pairs of callback type strings and their corresponding
+   * callback. E.g: std::make_pair("pointcloud",
+   * &ElevationMap::pointCloudCallback), std::make_pair("depthimage",
+   * &ElevationMap::depthImageCallback)
+   * @tparam MsgT The message types of the callbacks
+   * @return True if registering was successful.
+   */
+  template <typename... MsgT>
+  bool registerCallbacks(std::pair<const char*, CallbackT<MsgT>>... callbacks);
+
+  /**
+   * @brief Registers the corresponding callback in the elevationMap.
+   * @param map The map we want to link this input source to.
+   * @param callback The callback to use for incoming data.
+   * @tparam MsgT The message types of the callback.
+   */
+  template <typename MsgT>
+  void registerCallback(Input& input, CallbackT<MsgT> callback);
+
+
  protected:
   //! Input sources.
   InputSourceManager::SharedPtr inputSources_;
@@ -273,6 +302,9 @@ class ElevationMapping : public rclcpp::Node {
   rclcpp::Service<grid_map_msgs::srv::SetGridMap>::SharedPtr maskedReplaceService_;
   rclcpp::Service<grid_map_msgs::srv::ProcessFile>::SharedPtr saveMapService_;
   rclcpp::Service<grid_map_msgs::srv::ProcessFile>::SharedPtr loadMapService_;
+
+  //! Callback group for the pointcloud callbacks
+  rclcpp::CallbackGroup::SharedPtr pointcloudCallbackGroup_;
 
   //! Callback group for fusion service.
   rclcpp::CallbackGroup::SharedPtr fusionCallbackGroup_;
@@ -367,5 +399,54 @@ class ElevationMapping : public rclcpp::Node {
   //! Additional offset of the height value
   double initSubmapHeightOffset_;
 };
+
+template <typename... MsgT>
+bool ElevationMapping::registerCallbacks(std::pair<const char*, CallbackT<MsgT>>... callbacks) {
+  if (inputSources_->getNumberOfSources() == 0) {
+    RCLCPP_WARN(this->get_logger(), "Not registering any callbacks, no input sources given. Did you configure the InputSourceManager?");
+    return true;
+  }
+  for (auto & source : inputSources_->getSources()) {
+    bool callbackRegistered = false;
+    for (auto & callback : {callbacks...}) {
+      if (source.getType() == callback.first) {
+        registerCallback<sensor_msgs::msg::PointCloud2>(source, callback.second);
+        callbackRegistered = true;
+      }
+    }
+    if (!callbackRegistered) {
+      RCLCPP_WARN(this->get_logger(), "The configuration contains input sources of an unknown type: %s", source.getType().c_str());
+      RCLCPP_WARN(this->get_logger(), "Available types are:");
+      for (auto& callback : {callbacks...}) {
+        RCLCPP_WARN(this->get_logger(), "- %s", callback.first);
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename MsgT>
+void ElevationMapping::registerCallback(Input& input, CallbackT<MsgT> callback) {
+  (void) callback;
+  auto pub = input.getPublishOnUpdate();
+  auto proc = input.getSensorProcessor();
+
+  rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> options;
+  options.callback_group = pointcloudCallbackGroup_;
+
+  auto sub = this->create_subscription<MsgT>(
+    input.getTopic(),
+    rclcpp::SensorDataQoS(rclcpp::KeepLast(input.getQueueSize())),
+    // TODO(SivertHavso): Use std::bind with the callback argument
+    // std::bind(callback, this, std::placeholders::_1, pub, proc),
+    [this, pub, proc](std::shared_ptr<const MsgT> msg) { pointCloudCallback(msg, pub, proc); },
+    options
+  );
+
+  input.setSubscriber(sub);
+  
+  RCLCPP_INFO(this->get_logger(), "Subscribing to %s: %s, queue_size: %i.", input.getType().c_str(), input.getTopic().c_str(), input.getQueueSize());
+}
 
 }  // namespace elevation_mapping

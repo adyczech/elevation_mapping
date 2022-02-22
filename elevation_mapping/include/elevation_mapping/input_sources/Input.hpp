@@ -24,7 +24,7 @@ class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
 class Input {
  public:
   template <typename MsgT>
-  using CallbackT = void (ElevationMapping::*)(const std::shared_ptr<const MsgT>&, bool, const SensorProcessorBase::UniquePtr&);
+  using CallbackT = void (ElevationMapping::*)(const std::shared_ptr<const MsgT>, bool, const SensorProcessorBase::SharedPtr&);
 
   /**
    * @brief Constructor.
@@ -62,6 +62,21 @@ class Input {
    */
   std::string getType() { return dataType_; }
 
+  // TODO(SivertHavso): Add comments
+  std::string getTopic() { return topic_; }
+
+  int getQueueSize() { return queueSize_; }
+
+  bool getPublishOnUpdate() { return publishOnUpdate_; }
+
+  rclcpp::SubscriptionBase::SharedPtr getSubscriber() { return subscriber_; }
+
+  SensorProcessorBase::SharedPtr getSensorProcessor() { return sensorProcessor_; }
+
+  void setSubscriber(rclcpp::SubscriptionBase::SharedPtr subscription) { subscriber_ = subscription; }
+
+  rclcpp::Node::SharedPtr getNode() { return node_; };
+
  private:
   /**
    * @brief Configures the used sensor processor from the given parameters.
@@ -74,11 +89,11 @@ class Input {
                                 const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   // ROS connection.
-  rclcpp::SubscriptionBase::SharedPtr subscriber_;
   rclcpp::Node::SharedPtr node_;
 
   //! Sensor processor
-  SensorProcessorBase::UniquePtr sensorProcessor_;
+  rclcpp::SubscriptionBase::SharedPtr subscriber_;
+  SensorProcessorBase::SharedPtr sensorProcessor_;  // TODO(SivertHavso): Change back to UniquePtr?
 
   // Parameters.
   std::string name_;
@@ -87,12 +102,5 @@ class Input {
   std::string topic_;
   bool publishOnUpdate_;
 };
-
-template <typename MsgT>
-void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
-  subscriber_ = node_->create_subscription<MsgT>(
-      topic_, default_qos(queueSize_), std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
-  RCLCPP_INFO(node_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", dataType_.c_str(), topic_.c_str(), queueSize_);
-}
 
 }  // namespace elevation_mapping

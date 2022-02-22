@@ -96,7 +96,7 @@ void ElevationMapping::setupSubscribers() {  // Handle input_sources configurati
   const bool configuredInputSources = inputSources_->configureFromRos("input_sources");
 
   if (configuredInputSources) {
-    inputSources_->registerCallbacks(*this, make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
+    registerCallbacks(make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
   }
 
   if (!robotPoseTopic_.empty()) {
@@ -155,13 +155,17 @@ void ElevationMapping::setupServices() {
 
 void ElevationMapping::setupTimers() {
   // TODO(SivertHavso): Check whether reentrant can be used here
-  fusionCallbackGroup_ = create_callback_group(
+  pointcloudCallbackGroup_ = this->create_callback_group(
     rclcpp::CallbackGroupType::MutuallyExclusive,
-    true
+    false
   );
-  visibilityCleanupCallbackGroup_ = create_callback_group(
+  fusionCallbackGroup_ = this->create_callback_group(
     rclcpp::CallbackGroupType::MutuallyExclusive,
-    true
+    false
+  );
+  visibilityCleanupCallbackGroup_ = this->create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive,
+    false
   );
 
   mapUpdateTimer_ = rclcpp::create_timer(
@@ -280,32 +284,6 @@ bool ElevationMapping::readParameters() {
     map_->visibilityCleanupDuration_ = 1.0 / visibilityCleanupRate;
   }
 
-  // ElevationMap parameters. TODO Move this to the elevation map class.
-  // this->get_parameter("map_frame_id", mapFrameId_);
-  // map_->setFrameId(mapFrameId_);
-
-  // grid_map::Length length;
-  // grid_map::Position position;
-  // double resolution;
-  // this->get_parameter("length_in_x", length(0));
-  // this->get_parameter("length_in_y", length(1));
-  // this->get_parameter("position_x", position.x());
-  // this->get_parameter("position_y", position.y());
-  // this->get_parameter("resolution", resolution);
-  // map_->setGeometry(length, resolution, position);
-
-  // this->get_parameter("min_variance", map_->minVariance_);
-  // this->get_parameter("max_variance", map_->maxVariance_);
-  // this->get_parameter("mahalanobis_distance_threshold", map_->mahalanobisDistanceThreshold_);
-  // this->get_parameter("multi_height_noise", map_->multiHeightNoise_);
-  // this->get_parameter("min_horizontal_variance", map_->minHorizontalVariance_);
-  // this->get_parameter("max_horizontal_variance", map_->maxHorizontalVariance_);
-  // this->get_parameter("underlying_map_topic", map_->underlyingMapTopic_);
-  // this->get_parameter("enable_visibility_cleanup", map_->enableVisibilityCleanup_);
-  // this->get_parameter("enable_continuous_cleanup", map_->enableContinuousCleanup_);
-  // this->get_parameter("scanning_duration", map_->scanningDuration_);
-  // this->get_parameter("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_);  // TODO Move this to the elevation map class?
-
   // Settings for initializing elevation map
   this->get_parameter("initialize_elevation_map", initializeElevationMap_);
   this->get_parameter("initialization_method", initializationMethod_);
@@ -333,8 +311,8 @@ bool ElevationMapping::initialize() {
   return true;
 }
 
-void ElevationMapping::pointCloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishPointCloud,
-                                          const SensorProcessorBase::UniquePtr& sensorProcessor) {
+void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishPointCloud,
+                                          const SensorProcessorBase::SharedPtr& sensorProcessor) {
   RCLCPP_DEBUG(this->get_logger(), "Processing data from: %s", pointCloudMsg->header.frame_id.c_str());
   if (!updatesEnabled_) {
     RCLCPP_WARN_THROTTLE(
@@ -819,17 +797,20 @@ void ElevationMapping::stopMapUpdateTimer() {
   mapUpdateTimer_->cancel();
 }
 
-rclcpp::CallbackGroup::SharedPtr ElevationMapping::getDefaultCallbackGroup() {
-  return this->get_node_base_interface()->get_default_callback_group();
-}
-
 rclcpp::CallbackGroup::SharedPtr ElevationMapping::getFusionCallbackGroup() {
   return fusionCallbackGroup_;
+}
+
+rclcpp::CallbackGroup::SharedPtr ElevationMapping::getPointcloudCallbackGroup() {
+  return pointcloudCallbackGroup_;
 }
 
 rclcpp::CallbackGroup::SharedPtr ElevationMapping::getVisibilityCleanupCallbackGroup() {
   return visibilityCleanupCallbackGroup_;
 }
 
+rclcpp::CallbackGroup::SharedPtr ElevationMapping::getDefaultCallbackGroup() {
+  return this->get_node_base_interface()->get_default_callback_group();
+}
 
 }  // namespace elevation_mapping
