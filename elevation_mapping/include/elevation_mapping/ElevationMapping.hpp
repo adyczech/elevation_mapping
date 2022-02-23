@@ -400,6 +400,9 @@ class ElevationMapping : public rclcpp::Node {
 
   //! Additional offset of the height value
   double initSubmapHeightOffset_;
+
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_;
+
 };
 
 template <typename... MsgT>
@@ -437,16 +440,16 @@ void ElevationMapping::registerCallback(Input& input, CallbackT<MsgT> callback) 
   rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> options;
   options.callback_group = pointcloudCallbackGroup_;
 
-  auto sub = this->create_subscription<MsgT>(
+  sub_ = this->create_subscription<MsgT>(
     input.getTopic(),
     rclcpp::SensorDataQoS(rclcpp::KeepLast(input.getQueueSize())),
     // TODO(SivertHavso): Use std::bind with the callback argument
     // std::bind(callback, this, std::placeholders::_1, pub, proc),
-    [this, pub, proc](std::shared_ptr<const MsgT> msg) { pointCloudCallback(msg, pub, proc); },
+    [this, pub, proc](std::shared_ptr<const MsgT> msg) { RCLCPP_INFO(rclcpp::get_logger("debug_logger"), "pointcloud callback"); pointCloudCallback(msg, pub, proc); },
     options
   );
 
-  input.setSubscriber(sub);
+  // input.setSubscriber<MsgT>(sub);
   
   RCLCPP_INFO(this->get_logger(), "Subscribing to %s: %s, queue_size: %i.", input.getType().c_str(), input.getTopic().c_str(), input.getQueueSize());
 }

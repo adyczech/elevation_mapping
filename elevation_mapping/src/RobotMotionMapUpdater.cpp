@@ -23,8 +23,8 @@ RobotMotionMapUpdater::RobotMotionMapUpdater(rclcpp::Node::SharedPtr node) : nod
 RobotMotionMapUpdater::~RobotMotionMapUpdater() = default;
 
 bool RobotMotionMapUpdater::readParameters() {
-  node_->declare_parameter("robot_motion_map_update/covariance_scale", 1.0);
-  node_->get_parameter("robot_motion_map_update/covariance_scale", covarianceScale_);
+  node_->declare_parameter("robot_motion_map_update.covariance_scale", 1.0);
+  node_->get_parameter("robot_motion_map_update.covariance_scale", covarianceScale_);
   return true;
 }
 

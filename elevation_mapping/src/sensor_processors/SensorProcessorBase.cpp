@@ -29,6 +29,8 @@
 
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
 
+#define US_TO_S(us) us * 1e-6 
+
 namespace elevation_mapping {
 
 SensorProcessorBase::SensorProcessorBase(rclcpp::Node::SharedPtr node, const GeneralParameters& generalConfig)
@@ -73,7 +75,7 @@ bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput
   RCLCPP_DEBUG(node_->get_logger(), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
 
   // Update transformation at timestamp of pointcloud
-  rclcpp::Time timeStamp(1000 * pointCloudInput->header.stamp, RCL_ROS_TIME);
+  rclcpp::Time timeStamp(RCL_US_TO_NS(pointCloudInput->header.stamp), RCL_ROS_TIME);
   if (!updateTransformations(timeStamp)) {
     return false;
   }
@@ -138,7 +140,7 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
 
 bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointCloud, PointCloudType::Ptr pointCloudTransformed,
                                               const std::string& targetFrame) {
-  rclcpp::Time timeStamp(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
+  rclcpp::Time timeStamp(RCL_US_TO_NS(pointCloud->header.stamp), RCL_ROS_TIME);
   const std::string inputFrameId(pointCloud->header.frame_id);
 
   try {
@@ -153,7 +155,7 @@ bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointClou
     *node_->get_clock(),
     5,
      "Point cloud transformed to frame %s for time stamp %f.", targetFrame.c_str(),
-                      pointCloudTransformed->header.stamp / 1000.0);
+                      US_TO_S(pointCloudTransformed->header.stamp));
   } catch (tf2::TransformException& ex) {
     RCLCPP_ERROR(node_->get_logger(), "%s", ex.what());
     return false;

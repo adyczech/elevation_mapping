@@ -69,9 +69,9 @@ bool Input::configureSensorProcessor(std::string processorNamespace,
                                      const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters) {
   std::string sensorType;
 
-  node_->declare_parameter(std::string(processorNamespace + ".sensor_processor.type"), std::string());
+  node_->declare_parameter(std::string(processorNamespace + ".type"), std::string());
 
-  if (!node_->get_parameter(std::string(processorNamespace + ".sensor_processor.type"), sensorType)) {
+  if (!node_->get_parameter(std::string(processorNamespace + ".type"), sensorType)) {
     RCLCPP_ERROR(node_->get_logger(), "No sensor processor type specified for elevation mapping sensor %s; ignoring.", processorNamespace.c_str());
     return false;
   } if (topic_.empty() || topic_[0] == '~') {

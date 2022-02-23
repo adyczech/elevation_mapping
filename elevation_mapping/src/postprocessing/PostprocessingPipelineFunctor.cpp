@@ -48,6 +48,11 @@ void PostprocessingPipelineFunctor::readParameters() {
   node_->get_parameter("output_topic", outputTopic_);
   node_->get_parameter("postprocessor_pipeline_name", filterChainParametersName_);
 
+  if (!node_->has_parameter("min_update_rate")) {
+    RCLCPP_ERROR(node_->get_logger(), "Parameter 'min_update_rate' should have already been declared, but hasn't been");
+    node_->declare_parameter("min_update_rate", 0.0);
+  }
+
   double minUpdateRate;
   if (!node_->get_parameter("min_update_rate", minUpdateRate)) {
     RCLCPP_ERROR(node_->get_logger(), 

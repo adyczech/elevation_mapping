@@ -120,11 +120,15 @@ void ElevationMap::readParameters() {
   node_->get_parameter("map_frame_id", mapFrameId);
   setFrameId(mapFrameId);
 
-  node_->get_parameter("length_in_x", length(0));
-  node_->get_parameter("length_in_y", length(1));
-  node_->get_parameter("position_x", position.x());
-  node_->get_parameter("position_y", position.y());
-  setGeometry(length, resolution, position);
+  if (node_->get_parameter("length_in_x", length(0)) &&
+      node_->get_parameter("length_in_y", length(1)) &&
+      node_->get_parameter("position_x", position.x()) &&
+      node_->get_parameter("position_y", position.y()) &&
+      node_->get_parameter("resolution", resolution)) {
+    setGeometry(length, resolution, position);
+  } else {
+    RCLCPP_ERROR(node_->get_logger(), "Unable to set ElevationMap geometry. Check parameters");
+  }
   node_->get_parameter("min_variance", minVariance_);
   node_->get_parameter("max_variance", maxVariance_);
   node_->get_parameter("mahalanobis_distance_threshold", mahalanobisDistanceThreshold_);
@@ -158,8 +162,8 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
   }
 
   // Initialization for time calculation.
-  const rclcpp::Time methodStartTime(steadyClock_->now());
-  const rclcpp::Time currentTime(node_->get_clock()->now());  // TODO(SivertHavso): confirm we want RCL_ROS_TIME here
+  const rclcpp::Time methodStartTime(steadyClock_->now(), RCL_STEADY_TIME);
+  const rclcpp::Time currentTime(node_->get_clock()->now(), RCL_ROS_TIME);  // TODO(SivertHavso): confirm we want RCL_ROS_TIME here
   const float currentTimeSecondsPattern{intAsFloat(static_cast<uint32_t>(static_cast<uint64_t>(currentTime.seconds())))};
   std::scoped_lock scopedLockForRawData(rawMapMutex_);
 
@@ -335,7 +339,7 @@ bool ElevationMap::fuse(const grid_map::Index& topLeftIndex, const grid_map::Ind
   }
 
   // Initializations.
-  const rclcpp::Time methodStartTime(steadyClock_->now());
+  const rclcpp::Time methodStartTime(steadyClock_->now(), RCL_STEADY_TIME);
 
   // Copy raw elevation map data for safe multi-threading.
     grid_map::GridMap rawMapCopy;
@@ -509,7 +513,7 @@ bool ElevationMap::clear() {
 
 void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   // Get current time to compute calculation time.
-  const rclcpp::Time methodStartTime(steadyClock_->now());
+  const rclcpp::Time methodStartTime(steadyClock_->now(), RCL_STEADY_TIME);
   const double timeSinceInitialization = (updatedTime - initialTime_).seconds();
 
   // Copy raw elevation map data for safe multi-threading.

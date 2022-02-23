@@ -73,7 +73,8 @@ class Input {
 
   SensorProcessorBase::SharedPtr getSensorProcessor() { return sensorProcessor_; }
 
-  void setSubscriber(rclcpp::SubscriptionBase::SharedPtr subscription) { subscriber_ = subscription; }
+  template <typename MsgT>
+  void setSubscriber(std::shared_ptr<rclcpp::Subscription<MsgT>> subscription) { subscriber_ = subscription; }
 
   rclcpp::Node::SharedPtr getNode() { return node_; };
 
