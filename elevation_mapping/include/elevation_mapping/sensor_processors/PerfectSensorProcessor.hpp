@@ -47,6 +47,13 @@ class PerfectSensorProcessor : public SensorProcessorBase {
    */
   bool computeVariances(const PointCloudType::ConstPtr pointCloud, const Eigen::Matrix<double, 6, 6>& robotPoseCovariance,
                         Eigen::VectorXf& variances) override;
+
+  /*!
+   * Cuts off points that are not within the cutoff interval
+   * @param pointCloud the point cloud to filter.
+   * @return true if successful.
+   */
+  bool filterPointCloudSensorType(const PointCloudType::Ptr pointCloud) override;
 };
 
 } /* namespace elevation_mapping */

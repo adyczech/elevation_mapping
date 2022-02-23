@@ -10,6 +10,7 @@
 
 // PCL
 #include <pcl/filters/filter.h>
+#include <pcl/filters/passthrough.h>
 
 // STD
 #include <limits>
@@ -30,7 +31,13 @@ PerfectSensorProcessor::PerfectSensorProcessor(rclcpp::Node::SharedPtr node, con
 PerfectSensorProcessor::~PerfectSensorProcessor() = default;
 
 bool PerfectSensorProcessor::readParameters(std::string processorNamespace) {
-  return SensorProcessorBase::readParameters(processorNamespace);
+  SensorProcessorBase::readParameters(processorNamespace);
+  node_->declare_parameter(std::string(processorNamespace + ".cutoff_min_depth"), std::numeric_limits<double>::min());
+  node_->declare_parameter(std::string(processorNamespace + ".cutoff_max_depth"), std::numeric_limits<double>::max());
+  node_->get_parameter(std::string(processorNamespace + ".cutoff_min_depth"), sensorParameters_["cutoff_min_depth"]);
+  node_->get_parameter(std::string(processorNamespace + ".cutoff_max_depth"), sensorParameters_["cutoff_max_depth"]);
+
+  return true;
 }
 
 bool PerfectSensorProcessor::computeVariances(const PointCloudType::ConstPtr pointCloud,
@@ -82,5 +89,20 @@ bool PerfectSensorProcessor::computeVariances(const PointCloudType::ConstPtr poi
 
   return true;
 }
+
+bool PerfectSensorProcessor::filterPointCloudSensorType(const PointCloudType::Ptr pointCloud) {
+  pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter;
+  PointCloudType tempPointCloud;
+
+  // cutoff points with z values
+  passThroughFilter.setInputCloud(pointCloud);
+  passThroughFilter.setFilterFieldName("z");
+  passThroughFilter.setFilterLimits(sensorParameters_.at("cutoff_min_depth"), sensorParameters_.at("cutoff_max_depth"));
+  passThroughFilter.filter(tempPointCloud);
+  pointCloud->swap(tempPointCloud);
+
+  return true;
+}
+
 
 }  // namespace elevation_mapping
