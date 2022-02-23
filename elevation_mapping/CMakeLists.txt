@@ -59,8 +59,14 @@ target_link_libraries(${PROJECT_NAME}
 
 ament_auto_add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp)
 
+
 target_link_libraries(${PROJECT_NAME}_node
   ${PROJECT_NAME})
+
+ament_auto_add_executable(${PROJECT_NAME}_prio_node src/${PROJECT_NAME}_node_prio_threads.cpp)
+target_link_libraries(${PROJECT_NAME}_prio_node
+  ${PROJECT_NAME})
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

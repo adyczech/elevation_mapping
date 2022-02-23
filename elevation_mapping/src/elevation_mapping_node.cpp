@@ -8,6 +8,10 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "elevation_mapping/ElevationMapping.hpp"
+#include <chrono>
+
+using namespace std::literals::chrono_literals;
+
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
@@ -18,6 +22,13 @@ int main(int argc, char** argv) {
   options.use_intra_process_comms(true);
 
   auto elevationMap = std::make_shared<elevation_mapping::ElevationMapping>(options);
+
+  rclcpp::sleep_for(1s);
+
+  executor.add_callback_group(elevationMap->getFusionCallbackGroup(), elevationMap->get_node_base_interface());
+  executor.add_callback_group(elevationMap->getVisibilityCleanupCallbackGroup(), elevationMap->get_node_base_interface());
+  executor.add_callback_group(elevationMap->getPointcloudCallbackGroup(), elevationMap->get_node_base_interface());
+
 
   executor.add_node(elevationMap);
 

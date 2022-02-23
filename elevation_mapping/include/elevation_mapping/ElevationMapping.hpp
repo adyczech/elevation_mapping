@@ -211,6 +211,8 @@ class ElevationMapping : public rclcpp::Node {
    */
   bool initialize();
 
+  void setupCallbackGroups();
+
   /**
    * Sets up the subscribers for both robot poses and input data.
    */

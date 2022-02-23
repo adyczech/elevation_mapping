@@ -60,9 +60,14 @@ ElevationMapping::ElevationMapping(const rclcpp::NodeOptions & options)
 
   RCLCPP_INFO(this->get_logger(), "Elevation mapping node started.");
 
+  declareParameters();
+  setupCallbackGroups();
+
   // Initialize the tf buffer here to give it a head start
   transformBuffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
   transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
+
+  lastPointCloudUpdateTime_ = rclcpp::Time(0L, RCL_ROS_TIME);
 
   // We need to use shared_from_this to initialize some of the member objects, so create this timer that will 
   // execute a callback 100ms after the node has been constructed.
@@ -74,17 +79,16 @@ ElevationMapping::ElevationMapping(const rclcpp::NodeOptions & options)
 void ElevationMapping::initializeNode() {
   RCLCPP_DEBUG(this->get_logger(), "Node initialization timer callback executed.");
 
-  declareParameters();
-  readParameters();
-
   map_ = std::make_shared<ElevationMap>(shared_from_this(), maxNoUpdateDuration_);
   robotMotionMapUpdater_ = std::make_shared<RobotMotionMapUpdater>(shared_from_this());
   inputSources_ = std::make_shared<InputSourceManager>(shared_from_this());
 
+
+  readParameters();
+  setupTimers();
   setupSubscribers();
   setupServices();
-  setupTimers();
-
+  
   initialize();
 
   initTimer_->cancel();  // Cancel the timer, as it is no longer needed
@@ -92,11 +96,37 @@ void ElevationMapping::initializeNode() {
   RCLCPP_INFO(this->get_logger(), "Successfully launched node.");
 }
 
+void ElevationMapping::setupCallbackGroups() {
+  // TODO(SivertHavso): Check whether reentrant can be used here
+  pointcloudCallbackGroup_ = this->create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive,
+    false
+  );
+  fusionCallbackGroup_ = this->create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive,
+    false
+  );
+  visibilityCleanupCallbackGroup_ = this->create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive,
+    false
+  );
+}
+
 void ElevationMapping::setupSubscribers() {  // Handle input_sources configuration.
   const bool configuredInputSources = inputSources_->configureFromRos("input_sources");
 
   if (configuredInputSources) {
-    registerCallbacks(make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
+    rclcpp::SubscriptionOptionsWithAllocator<std::allocator<void>> options;
+    options.callback_group = pointcloudCallbackGroup_;
+    // registerCallbacks(make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
+    auto proc = inputSources_->getSources().at(0).getSensorProcessor();
+    sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+      "/intel_realsense_r200_depth/points",
+      rclcpp::SensorDataQoS(rclcpp::KeepLast(1)),
+      // [](std::shared_ptr<const sensor_msgs::msg::PointCloud2> msg) { RCLCPP_INFO(rclcpp::get_logger("debug_logger"), "pointcloud callback"); },
+      [this, proc](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) { RCLCPP_INFO(rclcpp::get_logger("debug_logger"), "pointcloud callback"); pointCloudCallback(msg, true, proc); },
+      options
+    );
   }
 
   if (!robotPoseTopic_.empty()) {
@@ -154,30 +184,19 @@ void ElevationMapping::setupServices() {
 }
 
 void ElevationMapping::setupTimers() {
-  // TODO(SivertHavso): Check whether reentrant can be used here
-  pointcloudCallbackGroup_ = this->create_callback_group(
-    rclcpp::CallbackGroupType::MutuallyExclusive,
-    false
-  );
-  fusionCallbackGroup_ = this->create_callback_group(
-    rclcpp::CallbackGroupType::MutuallyExclusive,
-    false
-  );
-  visibilityCleanupCallbackGroup_ = this->create_callback_group(
-    rclcpp::CallbackGroupType::MutuallyExclusive,
-    false
-  );
+  if (maxNoUpdateDuration_.nanoseconds() > 0) {
+    mapUpdateTimer_ = rclcpp::create_timer(
+      this,
+      this->get_clock(),
+      maxNoUpdateDuration_.to_chrono<std::chrono::duration<long double, std::milli>>(),
+      std::bind(&ElevationMapping::mapUpdateTimerCallback, this)
+    );
+  }
 
-  mapUpdateTimer_ = rclcpp::create_timer(
-    this,
-    this->get_clock(),
-    maxNoUpdateDuration_.to_chrono<std::chrono::duration<long double, std::milli>>(),
-    std::bind(&ElevationMapping::mapUpdateTimerCallback, this)
-  );
-
-  mapUpdateTimer_->cancel();  // Do not start the timer yet
+  stopMapUpdateTimer();  // Do not start the timer yet
 
   if (fusedMapPublishTimerDuration_.nanoseconds() != 0) {
+    RCLCPP_DEBUG(get_logger(), "Creating fused map timer");
     fusedMapPublishTimer_ = create_wall_timer(  // TODO(SivertHavso): RCL_ROS_TIME instead?
       fusedMapPublishTimerDuration_.to_chrono<std::chrono::duration<long double, std::milli>>(),
       std::bind(&ElevationMapping::publishFusedMapCallback, this),
@@ -191,6 +210,7 @@ void ElevationMapping::setupTimers() {
   if (map_->enableVisibilityCleanup_ && 
       visibilityCleanupTimerDuration_.nanoseconds() != 0  && 
     !map_->enableContinuousCleanup_) {
+    RCLCPP_DEBUG(get_logger(), "Creating visibility cleanup timer");
     visibilityCleanupTimer_ = create_wall_timer(  // TODO(SivertHavso): RCL_ROS_TIME instead?
       visibilityCleanupTimerDuration_.to_chrono<std::chrono::duration<long double, std::milli>>(),
       std::bind(&ElevationMapping::visibilityCleanupCallback, this),
@@ -267,7 +287,7 @@ bool ElevationMapping::readParameters() {
         this->get_logger(),
         "Rate for publishing the fused map is zero. The fused elevation map will not be published unless the service `triggerFusion` is "
         "called.");
-  } else if (std::isinf(fusedMapPublishingRate)) {
+  } else if (fusedMapPublishingRate < 0.0) {
     isContinuouslyFusing_ = true;
     fusedMapPublishTimerDuration_ = rclcpp::Duration::from_nanoseconds(0);
   } else {
@@ -275,7 +295,7 @@ bool ElevationMapping::readParameters() {
   }
 
   double visibilityCleanupRate;
-  this->get_parameter("fused_map_publishing_rate", visibilityCleanupRate);
+  this->get_parameter("visibility_cleanup_rate", visibilityCleanupRate);
   if (visibilityCleanupRate == 0.0) {
     visibilityCleanupTimerDuration_ = rclcpp::Duration::from_nanoseconds(0);
     RCLCPP_WARN(this->get_logger(), "Rate for visibility cleanup is zero and therefore disabled.");
@@ -304,9 +324,15 @@ bool ElevationMapping::initialize() {
   RCLCPP_INFO(this->get_logger(), "Elevation mapping node initializing ... ");
 
   rclcpp::sleep_for(std::chrono::duration<int64_t, std::milli>(1000));  // Need this to get the TF caches fill up. FIXME?
-  // resetMapUpdateTimer();  // FIXME?
-  fusedMapPublishTimer_.reset();
-  visibilityCleanupTimer_.reset();  // FIXME?
+  if (maxNoUpdateDuration_.nanoseconds() > 0) {
+    resetMapUpdateTimer();  // FIXME?
+  }
+  if (fusedMapPublishTimerDuration_.nanoseconds() > 0) {
+    fusedMapPublishTimer_->reset();
+  }
+  if (visibilityCleanupTimerDuration_.nanoseconds() > 0) {
+    visibilityCleanupTimer_->reset();  // FIXME?
+  }
   initializeElevationMap();
   return true;
 }
@@ -356,7 +382,12 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
 
   PointCloudType::Ptr pointCloud(new PointCloudType);
   pcl::fromPCLPointCloud2(pcl_pc, *pointCloud);
-  lastPointCloudUpdateTime_ = rclcpp::Time(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
+  lastPointCloudUpdateTime_ = rclcpp::Time(RCL_US_TO_NS(pointCloud->header.stamp), RCL_ROS_TIME);
+
+  // Temporary fix for:
+  // https://github.com/ros2/message_filters/issues/32
+  // We cannot use RCL_ROS_TIME for the robot pose cache
+  auto lastPointCloudUpdateTimeFix = rclcpp::Time(RCL_US_TO_NS(pointCloud->header.stamp), RCL_SYSTEM_TIME);
 
   RCLCPP_DEBUG(this->get_logger(), "ElevationMap received a point cloud (%i points) for elevation mapping.", static_cast<int>(pointCloud->size()));
 
@@ -364,10 +395,12 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   Eigen::Matrix<double, 6, 6> robotPoseCovariance;
   robotPoseCovariance.setZero();
   if (!ignoreRobotMotionUpdates_) {
-    auto poseMessage = robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTime_);
+    auto poseMessage = robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTimeFix);
+    RCLCPP_DEBUG(this->get_logger(), "Attempted to get robot pose");
     if (!poseMessage) {
+      RCLCPP_DEBUG(this->get_logger(), "Could not get pose message");
       // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
-      if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTime_.seconds()) {
+      if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTimeFix.seconds()) {
         RCLCPP_ERROR(this->get_logger(), "The oldest pose available is at %f, requested pose at %f", robotPoseCache_.getOldestTime().seconds(),
                   lastPointCloudUpdateTime_.seconds());
       } else {
@@ -377,6 +410,8 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     }
     robotPoseCovariance = Eigen::Map<const Eigen::MatrixXd>(poseMessage->pose.covariance.data(), 6, 6);
   }
+
+      RCLCPP_DEBUG(this->get_logger(), "Process pointcloud");
 
   // Process point cloud.
   PointCloudType::Ptr pointCloudProcessed(new PointCloudType);
@@ -401,6 +436,8 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   // Update map location.
   updateMapLocation();
 
+      RCLCPP_DEBUG(this->get_logger(), "Updating process noise");
+
   // Update map from motion prediction.
   if (!updatePrediction(lastPointCloudUpdateTime_)) {
     RCLCPP_ERROR(this->get_logger(), "Updating process noise failed.");
@@ -414,6 +451,8 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     map_->clear();
   }
 
+      RCLCPP_DEBUG(this->get_logger(), "Adding pointcloud to map");
+
   // Add point cloud to elevation map.
   if (!map_->add(pointCloudProcessed, measurementVariances, lastPointCloudUpdateTime_,
                 Eigen::Affine3d(sensorProcessor->transformationSensorToMap_))) {
@@ -421,6 +460,8 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     resetMapUpdateTimer();
     return;
   }
+
+      RCLCPP_DEBUG(this->get_logger(), "Publishing pointcloud");
 
   if (publishPointCloud) {
     // Publish elevation map.
@@ -435,6 +476,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
 }
 
 void ElevationMapping::mapUpdateTimerCallback() {
+  RCLCPP_DEBUG(get_logger(), "mapUpdateTimer called");
   if (!updatesEnabled_) {
     RCLCPP_WARN_THROTTLE(
     this->get_logger(),
@@ -446,7 +488,12 @@ void ElevationMapping::mapUpdateTimerCallback() {
     return;
   }
 
-  rclcpp::Time time = this->get_clock()->now();
+  rclcpp::Time time(this->get_clock()->now(), RCL_ROS_TIME);
+#ifndef NDEBUG
+  if (time.get_clock_type() != lastPointCloudUpdateTime_.get_clock_type()) {
+    RCLCPP_ERROR(this->get_logger(), "(ElevationMap::mapUpdateTimerCallback) Mismatching clocks. time is %d, lastupdatetime is %d", time.get_clock_type(), lastPointCloudUpdateTime_.get_clock_type());
+  }
+#endif  // NDEBUG
   if ((lastPointCloudUpdateTime_ - time) <= maxNoUpdateDuration_) {  // there were updates from sensordata, no need to force an update.
     return;
   }
@@ -478,6 +525,7 @@ void ElevationMapping::mapUpdateTimerCallback() {
 }
 
 void ElevationMapping::publishFusedMapCallback() {
+  RCLCPP_DEBUG(get_logger(), "publishFuesedMapCallback called");
   if (!map_->hasFusedMapSubscribers()) {
     return;
   }
@@ -490,7 +538,7 @@ void ElevationMapping::publishFusedMapCallback() {
 void ElevationMapping::visibilityCleanupCallback() {
   RCLCPP_DEBUG(this->get_logger(), "Elevation map is running visibility cleanup.");
   // Copy constructors for thread-safety.
-  map_->visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_));
+  map_->visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_, RCL_ROS_TIME));
 }
 
 bool ElevationMapping::fuseEntireMapServiceCallback(std_srvs::srv::Empty::Request::SharedPtr, std_srvs::srv::Empty::Response::SharedPtr) {
@@ -511,6 +559,7 @@ bool ElevationMapping::updatePrediction(const rclcpp::Time& time) {
 
   RCLCPP_DEBUG(this->get_logger(), "Updating map with latest prediction from time %f.", robotPoseCache_.getLatestTime().seconds());
 
+
   if (time + timeTolerance_ < map_->getTimeOfLastUpdate()) {
     RCLCPP_ERROR(this->get_logger(), "Requested update with time stamp %f, but time of last update was %f.", time.seconds(), map_->getTimeOfLastUpdate().seconds());
     return false;
@@ -520,11 +569,17 @@ bool ElevationMapping::updatePrediction(const rclcpp::Time& time) {
     return true;
   }
 
+  // Temporary fix for:
+  // https://github.com/ros2/message_filters/issues/32
+  // We cannot use RCL_ROS_TIME for the robot pose cache
+  auto timeFix = rclcpp::Time(time.nanoseconds(), RCL_SYSTEM_TIME);
+  auto lastPointCloudUpdateTimeFix = rclcpp::Time(lastPointCloudUpdateTime_.nanoseconds(), RCL_SYSTEM_TIME);
+
   // Get robot pose at requested time.
-  geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr poseMessage = robotPoseCache_.getElemBeforeTime(time);
+  geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr poseMessage = robotPoseCache_.getElemBeforeTime(timeFix);
   if (!poseMessage) {
     // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
-    if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTime_.seconds()) {
+    if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTimeFix.seconds()) {
       RCLCPP_ERROR(this->get_logger(), "The oldest pose available is at %f, requested pose at %f", robotPoseCache_.getOldestTime().seconds(),
                 lastPointCloudUpdateTime_.seconds());
     } else {
@@ -775,7 +830,15 @@ bool ElevationMapping::loadMapServiceCallback(const grid_map_msgs::srv::ProcessF
 }
 
 void ElevationMapping::resetMapUpdateTimer() {
+  if (mapUpdateTimer_ == nullptr) {
+    return;
+  }
+
   mapUpdateTimer_->cancel();
+  if (this->get_clock()->get_clock_type() != RCL_ROS_TIME || map_->getTimeOfLastUpdate().get_clock_type() != RCL_ROS_TIME) {
+    RCLCPP_ERROR(get_logger(), "Clocks not matching");
+  }
+
   rclcpp::Duration periodSinceLastUpdate = this->get_clock()->now() - map_->getTimeOfLastUpdate();
   if (periodSinceLastUpdate > maxNoUpdateDuration_) {
     periodSinceLastUpdate.from_nanoseconds(0);
@@ -794,6 +857,10 @@ void ElevationMapping::resetMapUpdateTimer() {
 }
 
 void ElevationMapping::stopMapUpdateTimer() {
+  if (mapUpdateTimer_ == nullptr) {
+    return;
+  }
+
   mapUpdateTimer_->cancel();
 }
 
@@ -809,8 +876,5 @@ rclcpp::CallbackGroup::SharedPtr ElevationMapping::getVisibilityCleanupCallbackG
   return visibilityCleanupCallbackGroup_;
 }
 
-rclcpp::CallbackGroup::SharedPtr ElevationMapping::getDefaultCallbackGroup() {
-  return this->get_node_base_interface()->get_default_callback_group();
-}
 
 }  // namespace elevation_mapping
