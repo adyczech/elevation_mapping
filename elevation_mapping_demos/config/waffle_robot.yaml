@@ -1,0 +1,74 @@
+/elevation_mapping:
+  ros__parameters:
+    # Robot.
+    map_frame_id:                               odom
+    robot_base_frame_id:                        base_footprint
+    robot_pose_with_covariance_topic:           /base_footprint_pose
+    robot_pose_cache_size:                      50
+    input_sources:
+      sensors:  # Add names of all the sensors here, otherwise 
+      - front  
+      front:  # A name to identify the input source
+        type: pointcloud
+        topic: /intel_realsense_r200_depth/points
+        queue_size: 1
+        publish_on_update: true  # Wheter to publish the elevation map after a callback from this source.
+        sensor_processor:
+          type: perfect
+          apply_voxelgrid_filter: true
+          voxelgrid_filter_size: 0.05
+          ignore_points_above: 0.4
+          ignore_points_below: -0.4
+          cutoff_min_depth: 0.01
+          cutoff_max_depth: 6.0
+    track_point_frame_id:                       base_footprint
+    track_point_x:                              0.0
+    track_point_y:                              0.0
+    track_point_z:                              0.0
+    min_update_rate:                            2.0
+    time_tolerance:                             1.0
+    time_offset_for_point_cloud:                0.0
+    robot_motion_map_update:
+      covariance_scale:                         0.01
+
+    # Map.
+    length_in_x:                                6.0
+    length_in_y:                                6.0
+    position_x:                                 0.0
+    position_y:                                 0.0
+    resolution:                                 0.1
+    min_variance:                               0.0001
+    max_variance:                               0.05
+    mahalanobis_distance_threshold:             2.5
+    multi_height_noise:                         0.001
+    surface_normal_positive_axis:               z
+    fused_map_publishing_rate:                  -1.0  # Differs from ROS1: use negative values instead of inf
+    enable_visibility_cleanup:                  true
+    enable_continuous_cleanup:                  false
+    visibility_cleanup_rate:                    1.0
+    scanning_duration:                          1.0
+
+    # Init submap
+    initialize_elevation_map:                   false
+    initialization_method:                      0
+    length_in_x_init_submap:                    1.0
+    length_in_y_init_submap:                    1.0
+    margin_init_submap:                         0.3
+    init_submap_height_offset:                  0.01
+    target_frame_init_submap:                   base_footprint
+
+    masked_replace_service_mask_layer_name: mask
+    max_horizontal_variance: 0.5
+    min_horizontal_variance: 0.0
+    output_topic: elevation_map_raw
+    postprocessor_num_threads: 1
+    # postprocessor_pipeline_name: postprocessor_pipeline
+    underlying_map_topic: ''
+    use_sim_time: true
+    qos_overrides:
+      /parameter_events:
+        publisher:
+          depth: 1000
+          durability: volatile
+          history: keep_last
+          reliability: reliable
