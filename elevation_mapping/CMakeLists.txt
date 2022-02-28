@@ -35,6 +35,7 @@ add_definitions(${PCL_DEFINITIONS})
 # Our custom pcl type with precompiled template instantiations.
 ament_auto_add_library(${PROJECT_NAME}_pcl_types
   src/PointXYZRGBConfidenceRatio.cpp
+  src/PointXYZConfidenceRatio.cpp
 )
 
 ament_auto_add_library(${PROJECT_NAME}

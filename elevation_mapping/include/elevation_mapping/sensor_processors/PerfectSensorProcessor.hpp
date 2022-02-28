@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 #include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
 
 namespace elevation_mapping {

@@ -25,7 +25,8 @@
 #include <rclcpp/rclcpp.hpp>
 
 // Elevation Mapping
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+// #include "elevation_mapping/PointXYZConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 #include "elevation_mapping/postprocessing/PostprocessorPool.hpp"
 
 namespace elevation_mapping {

@@ -27,7 +27,7 @@
 #include <limits>
 #include <vector>
 
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 
 #define US_TO_S(us) us * 1e-6 
 
@@ -171,7 +171,7 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
   RCLCPP_DEBUG(node_->get_logger(), "Limiting point cloud to the height interval of [%f, %f] relative to the robot base.", ignorePointsLowerThreshold_,
             ignorePointsUpperThreshold_);
 
-  pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter(true);
+  pcl::PassThrough<pcl::PointXYZConfidenceRatio> passThroughFilter(true);
   passThroughFilter.setInputCloud(reference);
   passThroughFilter.setFilterFieldName("z");  // TODO(max): Should this be configurable?
   double relativeLowerThreshold = translationMapToBaseInMapFrame_.z() + ignorePointsLowerThreshold_;
@@ -181,7 +181,7 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
   passThroughFilter.filter(*insideIndeces);
 
   for (auto& pointCloud : pointClouds) {
-    pcl::ExtractIndices<pcl::PointXYZRGBConfidenceRatio> extractIndicesFilter;
+    pcl::ExtractIndices<pcl::PointXYZConfidenceRatio> extractIndicesFilter;
     extractIndicesFilter.setInputCloud(pointCloud);
     extractIndicesFilter.setIndices(insideIndeces);
     PointCloudType tempPointCloud;
@@ -205,7 +205,7 @@ bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud)
 
   // Reduce points using VoxelGrid filter.
   if (applyVoxelGridFilter_) {
-    pcl::VoxelGrid<pcl::PointXYZRGBConfidenceRatio> voxelGridFilter;
+    pcl::VoxelGrid<pcl::PointXYZConfidenceRatio> voxelGridFilter;
     voxelGridFilter.setInputCloud(pointCloud);
     double filter_size = sensorParameters_.at("voxelgrid_filter_size");
     voxelGridFilter.setLeafSize(filter_size, filter_size, filter_size);

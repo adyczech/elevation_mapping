@@ -29,7 +29,8 @@
 
 // Elevation Mapping
 #include "elevation_mapping/ElevationMap.hpp"
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+// #include "elevation_mapping/PointXYZConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 #include "elevation_mapping/RobotMotionMapUpdater.hpp"
 #include "elevation_mapping/WeightedEmpiricalCumulativeDistributionFunction.hpp"
 #include "elevation_mapping/input_sources/InputSourceManager.hpp"

@@ -16,7 +16,7 @@
 #include "elevation_mapping/QoS.hpp"
 #include "elevation_mapping/ElevationMap.hpp"
 #include "elevation_mapping/ElevationMapFunctors.hpp"
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 #include "elevation_mapping/WeightedEmpiricalCumulativeDistributionFunction.hpp"
 
 namespace {
@@ -223,7 +223,7 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
       horizontalVarianceX = minHorizontalVariance_;
       horizontalVarianceY = minHorizontalVariance_;
       horizontalVarianceXY = 0.0;
-      grid_map::colorVectorToValue(point.getRGBVector3i(), color);
+      // grid_map::colorVectorToValue(point.getRGBVector3i(), color);
       continue;
     }
 
@@ -260,7 +260,7 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
         (variance * point.z + pointVariance * elevation) / (variance + pointVariance);  // NOLINT(cppcoreguidelines-pro-type-union-access)
     variance = (pointVariance * variance) / (pointVariance + variance);
     // TODO(max): Add color fusion.
-    grid_map::colorVectorToValue(point.getRGBVector3i(), color);
+    // grid_map::colorVectorToValue(point.getRGBVector3i(), color);
     time = scanTimeSinceInitialization;
     dynamicTime = currentTimeSecondsPattern;
 

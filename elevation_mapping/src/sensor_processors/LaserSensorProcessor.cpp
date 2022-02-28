@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 
 namespace elevation_mapping {
 

@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 
 namespace elevation_mapping {
 
@@ -91,7 +91,7 @@ bool PerfectSensorProcessor::computeVariances(const PointCloudType::ConstPtr poi
 }
 
 bool PerfectSensorProcessor::filterPointCloudSensorType(const PointCloudType::Ptr pointCloud) {
-  pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter;
+  pcl::PassThrough<pcl::PointXYZConfidenceRatio> passThroughFilter;
   PointCloudType tempPointCloud;
 
   // cutoff points with z values

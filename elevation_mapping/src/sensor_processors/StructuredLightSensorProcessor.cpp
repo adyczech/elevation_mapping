@@ -12,7 +12,7 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 #include "elevation_mapping/sensor_processors/StructuredLightSensorProcessor.hpp"
 
 namespace elevation_mapping {
@@ -117,7 +117,7 @@ bool StructuredLightSensorProcessor::computeVariances(const PointCloudType::Cons
 }
 
 bool StructuredLightSensorProcessor::filterPointCloudSensorType(const PointCloudType::Ptr pointCloud) {
-  pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter;
+  pcl::PassThrough<pcl::PointXYZConfidenceRatio> passThroughFilter;
   PointCloudType tempPointCloud;
 
   // cutoff points with z values

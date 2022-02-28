@@ -25,7 +25,7 @@
 #include <unordered_map>
 
 // PCL
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 
 namespace elevation_mapping {
 

@@ -14,7 +14,7 @@
 // STD
 #include <vector>
 
-#include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/PointXYZConfidenceRatio.hpp"
 
 namespace elevation_mapping {
 
@@ -76,7 +76,7 @@ bool StereoSensorProcessor::computeVariances(const PointCloudType::ConstPtr poin
     // For every point in point cloud.
 
     // Preparation.
-    pcl::PointXYZRGBConfidenceRatio point = pointCloud->points[i];
+    pcl::PointXYZConfidenceRatio point = pointCloud->points[i];
     double disparity = sensorParameters_.at("depth_to_disparity_factor") / point.z;  // NOLINT(cppcoreguidelines-pro-type-union-access)
     Eigen::Vector3f pointVector(point.x, point.y, point.z);  // S_r_SP // NOLINT(cppcoreguidelines-pro-type-union-access)
     float heightVariance = 0.0;                              // sigma_p
@@ -110,7 +110,7 @@ bool StereoSensorProcessor::computeVariances(const PointCloudType::ConstPtr poin
 }
 
 bool StereoSensorProcessor::filterPointCloudSensorType(const PointCloudType::Ptr pointCloud) {
-  pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter;
+  pcl::PassThrough<pcl::PointXYZConfidenceRatio> passThroughFilter;
   PointCloudType tempPointCloud;
 
   // cutoff points with z values
