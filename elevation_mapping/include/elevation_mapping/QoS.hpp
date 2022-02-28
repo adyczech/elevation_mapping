@@ -42,7 +42,7 @@ inline rclcpp::QoS default_qos(
 
   // Create a rclcpp::QoS object to set the deadline and return it
   auto qos = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos));
-  qos.deadline(deadline);
+  // qos.deadline(deadline);
   return qos;
 } 
 

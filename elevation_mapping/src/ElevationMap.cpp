@@ -605,7 +605,7 @@ void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   // Publish visibility cleanup map for debugging.
   publishVisibilityCleanupMap();
 
-  rclcpp::Duration duration(steadyClock_->now() - methodStartTime);
+  const rclcpp::Duration duration(steadyClock_->now() - methodStartTime);
   RCLCPP_DEBUG(node_->get_logger(), "Visibility cleanup has been performed in %f s (%d points).", duration.seconds(), (int)cellPositionsToRemove.size());
   if (duration.seconds() > visibilityCleanupDuration_) {
     RCLCPP_WARN(node_->get_logger(), "Visibility cleanup duration is too high (current rate is %f).", 1.0 / duration.seconds());

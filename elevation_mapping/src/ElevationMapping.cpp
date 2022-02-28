@@ -64,7 +64,7 @@ ElevationMapping::ElevationMapping(const rclcpp::NodeOptions & options)
   setupCallbackGroups();
 
   // Initialize the tf buffer here to give it a head start
-  transformBuffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  transformBuffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock(), std::chrono::seconds(5));
   transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
 
   lastPointCloudUpdateTime_ = rclcpp::Time(0L, RCL_ROS_TIME);
@@ -123,8 +123,7 @@ void ElevationMapping::setupSubscribers() {  // Handle input_sources configurati
     sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/intel_realsense_r200_depth/points",
       rclcpp::SensorDataQoS(rclcpp::KeepLast(1)),
-      // [](std::shared_ptr<const sensor_msgs::msg::PointCloud2> msg) { RCLCPP_INFO(rclcpp::get_logger("debug_logger"), "pointcloud callback"); },
-      [this, proc](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) { RCLCPP_INFO(rclcpp::get_logger("debug_logger"), "pointcloud callback"); pointCloudCallback(msg, true, proc); },
+      [this, proc](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) { pointCloudCallback(msg, true, proc); },
       options
     );
   }
@@ -189,7 +188,8 @@ void ElevationMapping::setupTimers() {
       this,
       this->get_clock(),
       maxNoUpdateDuration_.to_chrono<std::chrono::duration<long double, std::milli>>(),
-      std::bind(&ElevationMapping::mapUpdateTimerCallback, this)
+      std::bind(&ElevationMapping::mapUpdateTimerCallback, this),
+      pointcloudCallbackGroup_
     );
   }
 
@@ -356,8 +356,10 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
 
   // Check if point cloud has corresponding robot pose at the beginning
   if (!receivedFirstMatchingPointcloudAndPose_) {
-    const double oldestPoseTime = robotPoseCache_.getOldestTime().seconds();
-    const double currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp, RCL_ROS_TIME).seconds();
+    // currentPointCloudTime should be RCL_ROS_TIME, but because robotPoseCache works in RCL_SYSTEM_TIME,
+    // use RCL_SYSTEM_TIME. https://github.com/ros2/message_filters/issues/32
+    const rcl_time_point_value_t oldestPoseTime = robotPoseCache_.getOldestTime().nanoseconds();
+    const rcl_time_point_value_t currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp, RCL_SYSTEM_TIME).nanoseconds();
 
     if (currentPointCloudTime < oldestPoseTime) {
       RCLCPP_WARN_THROTTLE(
@@ -396,11 +398,9 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   robotPoseCovariance.setZero();
   if (!ignoreRobotMotionUpdates_) {
     auto poseMessage = robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTimeFix);
-    RCLCPP_DEBUG(this->get_logger(), "Attempted to get robot pose");
     if (!poseMessage) {
-      RCLCPP_DEBUG(this->get_logger(), "Could not get pose message");
       // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
-      if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTimeFix.seconds()) {
+      if (robotPoseCache_.getOldestTime().nanoseconds() > lastPointCloudUpdateTimeFix.nanoseconds()) {
         RCLCPP_ERROR(this->get_logger(), "The oldest pose available is at %f, requested pose at %f", robotPoseCache_.getOldestTime().seconds(),
                   lastPointCloudUpdateTime_.seconds());
       } else {
@@ -410,8 +410,6 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     }
     robotPoseCovariance = Eigen::Map<const Eigen::MatrixXd>(poseMessage->pose.covariance.data(), 6, 6);
   }
-
-      RCLCPP_DEBUG(this->get_logger(), "Process pointcloud");
 
   // Process point cloud.
   PointCloudType::Ptr pointCloudProcessed(new PointCloudType);
@@ -436,8 +434,6 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   // Update map location.
   updateMapLocation();
 
-      RCLCPP_DEBUG(this->get_logger(), "Updating process noise");
-
   // Update map from motion prediction.
   if (!updatePrediction(lastPointCloudUpdateTime_)) {
     RCLCPP_ERROR(this->get_logger(), "Updating process noise failed.");
@@ -451,8 +447,6 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     map_->clear();
   }
 
-      RCLCPP_DEBUG(this->get_logger(), "Adding pointcloud to map");
-
   // Add point cloud to elevation map.
   if (!map_->add(pointCloudProcessed, measurementVariances, lastPointCloudUpdateTime_,
                 Eigen::Affine3d(sensorProcessor->transformationSensorToMap_))) {
@@ -460,8 +454,6 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     resetMapUpdateTimer();
     return;
   }
-
-      RCLCPP_DEBUG(this->get_logger(), "Publishing pointcloud");
 
   if (publishPointCloud) {
     // Publish elevation map.
@@ -489,12 +481,8 @@ void ElevationMapping::mapUpdateTimerCallback() {
   }
 
   rclcpp::Time time(this->get_clock()->now(), RCL_ROS_TIME);
-#ifndef NDEBUG
-  if (time.get_clock_type() != lastPointCloudUpdateTime_.get_clock_type()) {
-    RCLCPP_ERROR(this->get_logger(), "(ElevationMap::mapUpdateTimerCallback) Mismatching clocks. time is %d, lastupdatetime is %d", time.get_clock_type(), lastPointCloudUpdateTime_.get_clock_type());
-  }
-#endif  // NDEBUG
-  if ((lastPointCloudUpdateTime_ - time) <= maxNoUpdateDuration_) {  // there were updates from sensordata, no need to force an update.
+  // TODO(SivertHavso): ROS1 branch incorrect?
+  if ((time - lastPointCloudUpdateTime_) <= maxNoUpdateDuration_) {  // there were updates from sensordata, no need to force an update.
     return;
   }
   RCLCPP_WARN_THROTTLE(
@@ -520,6 +508,10 @@ void ElevationMapping::mapUpdateTimerCallback() {
     map_->fuseAll();
     map_->publishFusedElevationMap();
   }
+
+  // FIXME
+  // Temporary fix to stop starvation while debugging 
+  // lastPointCloudUpdateTime_ = this->get_clock()->now();
 
   resetMapUpdateTimer();
 }
@@ -579,7 +571,7 @@ bool ElevationMapping::updatePrediction(const rclcpp::Time& time) {
   geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr poseMessage = robotPoseCache_.getElemBeforeTime(timeFix);
   if (!poseMessage) {
     // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
-    if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTimeFix.seconds()) {
+    if (robotPoseCache_.getOldestTime().nanoseconds() > lastPointCloudUpdateTimeFix.nanoseconds()) {
       RCLCPP_ERROR(this->get_logger(), "The oldest pose available is at %f, requested pose at %f", robotPoseCache_.getOldestTime().seconds(),
                 lastPointCloudUpdateTime_.seconds());
     } else {
@@ -844,15 +836,19 @@ void ElevationMapping::resetMapUpdateTimer() {
     periodSinceLastUpdate.from_nanoseconds(0);
   }
   auto period = (maxNoUpdateDuration_ - periodSinceLastUpdate);
-  if (period.nanoseconds() < 0) {
-    period = rclcpp::Duration::from_nanoseconds(0);
+  if (period.nanoseconds() <= 0) {
+    // Period should be set to 0, but calling the timer continously at a period of 0 will cause starvation to not let the
+    // pointcloud subscriber process incomming messages. Semi-related to https://github.com/ros2/rclcpp/issues/392.
+    // Therefore set it to 100 microseconds
+    period = rclcpp::Duration::from_nanoseconds(RCL_US_TO_NS(100));
   }
 
   mapUpdateTimer_ = rclcpp::create_timer(
     this,
     this->get_clock(),
     (period).to_chrono<std::chrono::duration<long double, std::milli>>(),
-    std::bind(&ElevationMapping::mapUpdateTimerCallback, this)
+    std::bind(&ElevationMapping::mapUpdateTimerCallback, this),
+    pointcloudCallbackGroup_
   );
 }
 

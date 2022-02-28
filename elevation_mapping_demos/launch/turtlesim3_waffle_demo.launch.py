@@ -26,6 +26,12 @@ def generate_launch_description():
     'waffle_robot.yaml'
     )
 
+  gazebo_params = os.path.join(
+    pkg_elevation_mapping_demos,
+    'config',
+    'gazebo.yaml'
+    )
+
   print(config)
 
   # rviz2_config = os.path.join(
@@ -112,10 +118,10 @@ def generate_launch_description():
   # Start gazebo server with turtlebot3_house scene
   if (verbose):
     gazebo_server_cmd = cmd=['gzserver', '-s', 'libgazebo_ros_init.so',
-          '-s', 'libgazebo_ros_factory.so', robot_sdf, '--verbose']
+        '-s', 'libgazebo_ros_factory.so', robot_sdf, '--verbose', '--ros-args', '--params-file', gazebo_params]
   else:
     gazebo_server_cmd = cmd=['gzserver', '-s', 'libgazebo_ros_init.so',
-        '-s', 'libgazebo_ros_factory.so', robot_sdf]
+        '-s', 'libgazebo_ros_factory.so', robot_sdf, '--ros-args', '--params-file', gazebo_params]
 
   start_gazebo_server_cmd = ExecuteProcess(
     cmd=cmd,

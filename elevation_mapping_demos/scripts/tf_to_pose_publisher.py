@@ -60,7 +60,7 @@ def main(args=None):
         rclpy.qos.QoSPresetProfiles.SENSOR_DATA.value)
 
     # Set callback and start spinning
-    timer = node.create_timer(0.05, callback)
+    timer = node.create_timer(0.5, callback)
 
     rclpy.spin(node)
 

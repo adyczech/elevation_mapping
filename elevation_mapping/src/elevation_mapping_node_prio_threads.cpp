@@ -28,6 +28,9 @@ int main(int argc, char** argv) {
 
   rclcpp::NodeOptions options;
   options.use_intra_process_comms(true);
+  options.start_parameter_event_publisher(false);
+  options.start_parameter_services(true);
+  options.use_clock_thread(true);
 
   auto elevationMap = std::make_shared<elevation_mapping::ElevationMapping>(options);
 

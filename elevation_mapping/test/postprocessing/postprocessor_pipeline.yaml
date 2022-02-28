@@ -1,13 +1,17 @@
-postprocessor_pipeline_name: test_pipeline
+/test_postprocessor_pool:
+  ros__parameters:
+    postprocessor_pipeline_name: test_pipeline
 
-test_pipeline:
-  - name: first
-    type: gridMapFilters/MockFilter
-    params:
-      processing_time: 100 # [ms]
-      print_name: true
-  - name: second
-    type: gridMapFilters/MockFilter
-    params:
-      processing_time: 50 # [ms]
-      print_name: true
+    filters:
+      filter1:
+        name: first
+        type: gridMapFilters/MockFilter
+        params:
+          processing_time: 100 # [ms]
+          print_name: true
+      filter2:
+        name: second
+        type: gridMapFilters/MockFilter
+        params:
+          processing_time: 50 # [ms]
+          print_name: true

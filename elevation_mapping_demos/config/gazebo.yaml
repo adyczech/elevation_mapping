@@ -1,0 +1,7 @@
+gzserver:
+    ros__parameters:
+        publish_rate: 100.0
+
+gazebo:
+    ros__parameters:
+        publish_rate: 100.0
