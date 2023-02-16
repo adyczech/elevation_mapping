@@ -18,22 +18,43 @@
 
 namespace elevation_mapping {
 
-StereoSensorProcessor::StereoSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters)
+StereoSensorProcessor::StereoSensorProcessor(std::shared_ptr<rclcpp::Node>& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters)
     : SensorProcessorBase(nodeHandle, generalParameters), originalWidth_(1) {}
 
 StereoSensorProcessor::~StereoSensorProcessor() = default;
 
-bool StereoSensorProcessor::readParameters() {
-  SensorProcessorBase::readParameters();
-  nodeHandle_.param("sensor_processor/p_1", sensorParameters_["p_1"], 0.0);
-  nodeHandle_.param("sensor_processor/p_2", sensorParameters_["p_2"], 0.0);
-  nodeHandle_.param("sensor_processor/p_3", sensorParameters_["p_3"], 0.0);
-  nodeHandle_.param("sensor_processor/p_4", sensorParameters_["p_4"], 0.0);
-  nodeHandle_.param("sensor_processor/p_5", sensorParameters_["p_5"], 0.0);
-  nodeHandle_.param("sensor_processor/lateral_factor", sensorParameters_["lateral_factor"], 0.0);
-  nodeHandle_.param("sensor_processor/depth_to_disparity_factor", sensorParameters_["depth_to_disparity_factor"], 0.0);
-  nodeHandle_.param("sensor_processor/cutoff_min_depth", sensorParameters_["cutoff_min_depth"], std::numeric_limits<double>::min());
-  nodeHandle_.param("sensor_processor/cutoff_max_depth", sensorParameters_["cutoff_max_depth"], std::numeric_limits<double>::max());
+bool StereoSensorProcessor::readParameters(std::string& inputSourceName) {
+  SensorProcessorBase::readParameters(inputSourceName);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_1", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_2", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_3", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_4", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_5", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.lateral_factor", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.depth_to_disparity_factor", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.cutoff_min_depth", rclcpp::ParameterValue(std::numeric_limits<double>::min()));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.cutoff_max_depth", rclcpp::ParameterValue(std::numeric_limits<double>::max()));
+  
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.p_1", sensorParameters_["p_1"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.p_2", sensorParameters_["p_2"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.p_3", sensorParameters_["p_3"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.p_4", sensorParameters_["p_4"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.p_5", sensorParameters_["p_5"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.lateral_factor", sensorParameters_["lateral_factor"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.depth_to_disparity_factor", sensorParameters_["depth_to_disparity_factor"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.cutoff_min_depth", sensorParameters_["cutoff_min_depth"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.cutoff_max_depth", sensorParameters_["cutoff_max_depth"]);
+
+
+  // nodeHandle_.param("sensor_processor/p_1", sensorParameters_["p_1"], 0.0);
+  // nodeHandle_.param("sensor_processor/p_2", sensorParameters_["p_2"], 0.0);
+  // nodeHandle_.param("sensor_processor/p_3", sensorParameters_["p_3"], 0.0);
+  // nodeHandle_.param("sensor_processor/p_4", sensorParameters_["p_4"], 0.0);
+  // nodeHandle_.param("sensor_processor/p_5", sensorParameters_["p_5"], 0.0);
+  // nodeHandle_.param("sensor_processor/lateral_factor", sensorParameters_["lateral_factor"], 0.0);
+  // nodeHandle_.param("sensor_processor/depth_to_disparity_factor", sensorParameters_["depth_to_disparity_factor"], 0.0);
+  // nodeHandle_.param("sensor_processor/cutoff_min_depth", sensorParameters_["cutoff_min_depth"], std::numeric_limits<double>::min());
+  // nodeHandle_.param("sensor_processor/cutoff_max_depth", sensorParameters_["cutoff_max_depth"], std::numeric_limits<double>::max());
   return true;
 }
 

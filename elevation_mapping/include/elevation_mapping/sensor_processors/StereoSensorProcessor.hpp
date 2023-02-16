@@ -27,7 +27,8 @@ class StereoSensorProcessor : public SensorProcessorBase {
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  StereoSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
+  StereoSensorProcessor(std::shared_ptr<rclcpp::Node>& nodeHandle,
+                        const SensorProcessorBase::GeneralParameters& generalParameters);
 
   /*!
    * Destructor.
@@ -39,7 +40,7 @@ class StereoSensorProcessor : public SensorProcessorBase {
    * Reads and verifies the parameters.
    * @return true if successful.
    */
-  bool readParameters() override;
+  bool readParameters(std::string& inputSourceName) override;
 
   /*!
    * Computes the elevation map height variances for each point in a point cloud with the

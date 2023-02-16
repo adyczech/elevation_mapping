@@ -22,7 +22,7 @@
 #include <boost/thread/recursive_mutex.hpp>
 
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 // Elevation Mapping
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
@@ -38,7 +38,7 @@ class ElevationMap {
   /*!
    * Constructor.
    */
-  explicit ElevationMap(ros::NodeHandle nodeHandle);
+  explicit ElevationMap(std::shared_ptr<rclcpp::Node> nodeHandle);
 
   /*!
    * Destructor.
@@ -62,7 +62,7 @@ class ElevationMap {
    * @param transformationSensorToMap
    * @return true if successful.
    */
-  bool add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& pointCloudVariances, const ros::Time& timeStamp,
+  bool add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& pointCloudVariances, const rclcpp::Time& timeStamp,
            const Eigen::Affine3d& transformationSensorToMap);
 
   /*!
@@ -75,7 +75,7 @@ class ElevationMap {
    * @return true if successful.
    */
   bool update(const grid_map::Matrix& varianceUpdate, const grid_map::Matrix& horizontalVarianceUpdateX,
-              const grid_map::Matrix& horizontalVarianceUpdateY, const grid_map::Matrix& horizontalVarianceUpdateXY, const ros::Time& time);
+              const grid_map::Matrix& horizontalVarianceUpdateY, const grid_map::Matrix& horizontalVarianceUpdateXY, const rclcpp::Time& time);
 
   /*!
    * Triggers the fusion of the entire elevation map.
@@ -102,7 +102,7 @@ class ElevationMap {
    * @param transformationSensorToMap
    * @param updatedTime
    */
-  void visibilityCleanup(const ros::Time& updatedTime);
+  void visibilityCleanup(const rclcpp::Time& updatedTime);
 
   /*!
    * Move the grid map w.r.t. to the grid map frame.
@@ -158,13 +158,13 @@ class ElevationMap {
    * Gets the time of last map update.
    * @return time of the last map update.
    */
-  ros::Time getTimeOfLastUpdate();
+  rclcpp::Time getTimeOfLastUpdate();
 
   /*!
    * Gets the time of last map fusion.
    * @return time of the last map fusion.
    */
-  ros::Time getTimeOfLastFusion();
+  rclcpp::Time getTimeOfLastFusion();
 
   /*!
    * Get the pose of the elevation map frame w.r.t. the inertial parent frame of the robot (e.g. world, map etc.).
@@ -209,7 +209,7 @@ class ElevationMap {
    * Set the timestamp of the raw and fused elevation map.
    * @param timestmap to set.
    */
-  void setTimestamp(ros::Time timestamp);
+  void setTimestamp(rclcpp::Time timestamp);
 
   /*!
    * If the raw elevation map has subscribers.
@@ -228,7 +228,7 @@ class ElevationMap {
    * Updates the internal underlying map.
    * @param underlyingMap the underlying map.
    */
-  void underlyingMapCallback(const grid_map_msgs::GridMap& underlyingMap);
+  void underlyingMapCallback(const grid_map_msgs::msg::GridMap::SharedPtr underlyingMap);
 
   /*!
    * Method to set the height value around the center of the robot, can be used for initialization.
@@ -274,7 +274,7 @@ class ElevationMap {
   float cumulativeDistributionFunction(float x, float mean, float standardDeviation);
 
   //! ROS nodehandle.
-  ros::NodeHandle nodeHandle_;
+  std::shared_ptr<rclcpp::Node> nodeHandle_;
 
   //! Raw elevation map as grid map.
   grid_map::GridMap rawMap_;
@@ -298,8 +298,8 @@ class ElevationMap {
   kindr::HomTransformQuatD pose_;
 
   //! ROS publishers. Publishing of the raw elevation map is handled by the postprocessing pool.
-  ros::Publisher elevationMapFusedPublisher_;
-  ros::Publisher visibilityCleanupMapPublisher_;
+  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr elevationMapFusedPublisher_;
+  rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr visibilityCleanupMapPublisher_;
 
   //! Mutex lock for fused map.
   boost::recursive_mutex fusedMapMutex_;
@@ -311,10 +311,10 @@ class ElevationMap {
   boost::recursive_mutex visibilityCleanupMapMutex_;
 
   //! Underlying map subscriber.
-  ros::Subscriber underlyingMapSubscriber_;
+  rclcpp::Subscription<grid_map_msgs::msg::GridMap>::SharedPtr underlyingMapSubscriber_;
 
   //! Initial ros time
-  ros::Time initialTime_;
+  rclcpp::Time initialTime_;
 
   //! Parameters. Are set through the ElevationMapping class.
   double minVariance_;

@@ -22,7 +22,8 @@ class PerfectSensorProcessor : public SensorProcessorBase {
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  PerfectSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
+  PerfectSensorProcessor(std::shared_ptr<rclcpp::Node>& nodeHandle,
+    const SensorProcessorBase::GeneralParameters& generalParameters);
 
   /*!
    * Destructor.
@@ -32,9 +33,10 @@ class PerfectSensorProcessor : public SensorProcessorBase {
  private:
   /*!
    * Reads and verifies the parameters.
+   * @param inputSourceName
    * @return true if successful.
    */
-  bool readParameters() override;
+  bool readParameters(std::string& inputSourceName) override;
 
   /*!
    * Computes the elevation map height variances for each point in a point cloud with the

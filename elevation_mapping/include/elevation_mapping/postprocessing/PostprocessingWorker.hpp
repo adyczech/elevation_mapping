@@ -29,7 +29,7 @@ class PostprocessingWorker {
  public:
   using GridMap = grid_map::GridMap;
 
-  explicit PostprocessingWorker(ros::NodeHandle nodeHandle);
+  explicit PostprocessingWorker(std::shared_ptr<rclcpp::Node> nodeHandle);
 
   /*! @name Accessors */
   ///@{

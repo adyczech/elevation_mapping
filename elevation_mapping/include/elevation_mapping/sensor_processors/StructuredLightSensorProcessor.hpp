@@ -22,7 +22,8 @@ class StructuredLightSensorProcessor : public SensorProcessorBase {
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  StructuredLightSensorProcessor(ros::NodeHandle& nodeHandle, const SensorProcessorBase::GeneralParameters& generalParameters);
+  StructuredLightSensorProcessor(std::shared_ptr<rclcpp::Node>& nodeHandle,
+    const SensorProcessorBase::GeneralParameters& generalParameters);
 
   /*!
    * Destructor.
@@ -34,7 +35,7 @@ class StructuredLightSensorProcessor : public SensorProcessorBase {
    * Reads and verifies the parameters.
    * @return true if successful.
    */
-  bool readParameters() override;
+  bool readParameters(std::string& inputSourceName) override;
 
   /*!
    * Computes the elevation map height variances for each point in a point cloud with the

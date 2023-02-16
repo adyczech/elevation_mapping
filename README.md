@@ -1,5 +1,22 @@
 # Robot-Centric Elevation Mapping
 
+## PORT TO ROS2
+
+This is quick and dirty port of elevation mapping to ROS2.
+
+Changes in ROS2 version:
+- `point_cloud_topic` parameter was removed
+- `input_sources` parameter was introduced to specify list of input sources eg. `["top", "front"]`
+- Individual input sources are specified as a parameter group. The name of input source has to match one in the list.
+- Post processing filters has to respect new config style introduced in ROS2 
+
+Port TODO list:
+- [x] Port of barebone functionality
+- [ ] Timers and timer callbacks
+- [ ] Fix multithreading
+- [ ] Port demos
+- [ ] Port testing
+
 ## Overview
 
 This is a [ROS] package developed for elevation mapping with a mobile robot. The software is designed for (local) navigation tasks with robots which are equipped with a pose estimation (e.g. IMU & odometry) and a distance sensor (e.g. structured light (Kinect, RealSense), laser range sensor, stereo camera). The provided elevation map is limited around the robot and reflects the pose uncertainty that is aggregated through the motion of the robot (robot-centric mapping). This method is developed to explicitly handle drift of the robot pose estimation.

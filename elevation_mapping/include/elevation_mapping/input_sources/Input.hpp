@@ -8,11 +8,12 @@
 
 #pragma once
 
-#include <XmlRpc.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <string>
 
+#include "elevation_mapping/ThreadSafeDataWrapper.hpp"
 #include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 namespace elevation_mapping {
 class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
@@ -24,24 +25,22 @@ class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
 class Input {
  public:
   template <typename MsgT>
-  using CallbackT = void (ElevationMapping::*)(const boost::shared_ptr<const MsgT>&, bool, const SensorProcessorBase::Ptr&);
+  using CallbackT = void (ElevationMapping::*)(MsgT, bool, const SensorProcessorBase::Ptr&);
 
   /**
    * @brief Constructor.
    * @param nh Reference to the nodeHandle of the manager. Used to subscribe
    * to inputs.
    */
-  explicit Input(ros::NodeHandle nh);
+  explicit Input(std::shared_ptr<rclcpp::Node> nh);
 
   /**
    * @brief Configure the input source.
    * @param name Name of this input source.
-   * @param parameters The configuration parameters.
    * @param generalSensorProcessorParameters Parameters shared by all sensor processors.
    * @return True if configuring was successful.
    */
-  bool configure(std::string name, const XmlRpc::XmlRpcValue& parameters,
-                 const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
+  bool configure(std::string& inputSourceName, const std::string& sourceConfigurationName, const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   /**
    * @brief Registers the corresponding callback in the elevationMap.
@@ -61,7 +60,10 @@ class Input {
   /**
    * @return The type of this input source.
    */
-  std::string getType() { return type_; }
+  std::string getType() {
+    const Parameters parameters{parameters_.getData()};
+    return parameters.type_;
+  }
 
  private:
   /**
@@ -72,29 +74,69 @@ class Input {
    * processor.
    * @return True if successful.
    */
-  bool configureSensorProcessor(std::string name, const XmlRpc::XmlRpcValue& parameters,
+  bool configureSensorProcessor(std::string& name, const std::string& parameter,
                                 const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters);
 
   // ROS connection.
-  ros::Subscriber subscriber_;
-  ros::NodeHandle nodeHandle_;
+  // rclcpp::Subscription<MsgT>::SharedPtr subscriber_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscriber_;
+  //rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr dummy_subscriber_;
+  std::shared_ptr<rclcpp::Node> nodeHandle_;
 
   //! Sensor processor
   SensorProcessorBase::Ptr sensorProcessor_;
 
   // Parameters.
-  std::string name_;
-  std::string type_;
-  uint32_t queueSize_;
-  std::string topic_;
-  bool publishOnUpdate_;
+  struct Parameters {
+    std::string name_;
+    std::string type_;
+    bool isEnabled_{true};
+    uint32_t queueSize_{0};
+    std::string topic_;
+    bool publishOnUpdate_{true};
+  };
+  ThreadSafeDataWrapper<Parameters> parameters_;
 };
 
-template <typename MsgT>
+ template <typename MsgT>
 void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
-  subscriber_ = nodeHandle_.subscribe<MsgT>(
-      topic_, queueSize_, std::bind(callback, std::ref(map), std::placeholders::_1, publishOnUpdate_, std::ref(sensorProcessor_)));
-  ROS_INFO("Subscribing to %s: %s, queue_size: %i.", type_.c_str(), topic_.c_str(), queueSize_);
+  const Parameters parameters{parameters_.getData()};
+  subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(parameters.topic_, parameters.queueSize_,
+    [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
+      map.pointCloudCallback(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
+    });
+// Error: (map.*callback)      (map.*(callback))
+// Not compiled: (map->*callback)       (map::*callback)
+  // Funguje:
+  // subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(        
+      // parameters.topic_, parameters.queueSize_, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: point cloud");});  
+    
+    
+        // [ref]
+        //callback(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));});
+      // parameters.topic_, parameters.queueSize_,
+      // std::bind(callback, std::ref(map), std::placeholders::_1, parameters.publishOnUpdate_, std::ref(sensorProcessor_)));
+      // ((map).*(callback))
+  /*dummy_subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>("pc_test", parameters.queueSize_,
+      [this](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
+        RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: pc_test");
+      });*/
+
+  /*dummy_subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>("pc_test", parameters.queueSize_,
+      [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
+        map.dummyMethod(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
+      });*/
+
+  // FIXME:
+  //map.pointCloudCallback - works
+  //(map.*callback) - causes segfault
+
+  /*dummy_subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>("pc_test", parameters.queueSize_,
+      [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
+        (map.*callback)(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
+      });*/
+  
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", parameters.type_.c_str(), parameters.topic_.c_str(), parameters.queueSize_);
 }
 
 }  // namespace elevation_mapping

@@ -9,7 +9,7 @@
 #include "elevation_mapping/sensor_processors/SensorProcessorBase.hpp"
 
 // ROS
-#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 
 // PCL
 #include <pcl/common/io.h>
@@ -31,17 +31,20 @@
 
 namespace elevation_mapping {
 
-SensorProcessorBase::SensorProcessorBase(ros::NodeHandle& nodeHandle, const GeneralParameters& generalConfig)
+SensorProcessorBase::SensorProcessorBase(std::shared_ptr<rclcpp::Node>& nodeHandle, const GeneralParameters& generalConfig)
     : nodeHandle_(nodeHandle),
-      transformListener_(transformBuffer_),
+      // transformListener_(std::make_shared<tf2_ros::TransformListener>(*transformBuffer_)),
       ignorePointsUpperThreshold_(std::numeric_limits<double>::infinity()),
       ignorePointsLowerThreshold_(-std::numeric_limits<double>::infinity()),
       applyVoxelGridFilter_(false),
       firstTfAvailable_(false) {
+  transformBuffer_ = std::make_shared<tf2_ros::Buffer>(nodeHandle_->get_clock());
+  transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
+
   pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
   transformationSensorToMap_.setIdentity();
   generalParameters_ = generalConfig;
-  ROS_DEBUG(
+  RCLCPP_DEBUG(nodeHandle_->get_logger(),
       "Sensor processor general parameters are:"
       "\n\t- robot_base_frame_id: %s"
       "\n\t- map_frame_id: %s",
@@ -50,23 +53,28 @@ SensorProcessorBase::SensorProcessorBase(ros::NodeHandle& nodeHandle, const Gene
 
 SensorProcessorBase::~SensorProcessorBase() = default;
 
-bool SensorProcessorBase::readParameters() {
-  nodeHandle_.param("sensor_processor/ignore_points_above", ignorePointsUpperThreshold_, std::numeric_limits<double>::infinity());
-  nodeHandle_.param("sensor_processor/ignore_points_below", ignorePointsLowerThreshold_, -std::numeric_limits<double>::infinity());
+bool SensorProcessorBase::readParameters(std::string& inputSourceName) {
+  // TODO: Add parameter validation
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_above", rclcpp::ParameterValue(std::numeric_limits<double>::infinity()));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_below", rclcpp::ParameterValue(-std::numeric_limits<double>::infinity()));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", rclcpp::ParameterValue(false));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", rclcpp::ParameterValue(0.0));
 
-  nodeHandle_.param("sensor_processor/apply_voxelgrid_filter", applyVoxelGridFilter_, false);
-  nodeHandle_.param("sensor_processor/voxelgrid_filter_size", sensorParameters_["voxelgrid_filter_size"], 0.0);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_above", ignorePointsUpperThreshold_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_below", ignorePointsLowerThreshold_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", applyVoxelGridFilter_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", sensorParameters_["voxelgrid_filter_size"]);
   return true;
 }
 
 bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput, const Eigen::Matrix<double, 6, 6>& robotPoseCovariance,
                                   const PointCloudType::Ptr pointCloudMapFrame, Eigen::VectorXf& variances, std::string sensorFrame) {
   sensorFrameId_ = sensorFrame;
-  ROS_DEBUG("Sensor Processor processing for frame %s", sensorFrameId_.c_str());
-
-  // Update transformation at timestamp of pointcloud
-  ros::Time timeStamp;
-  timeStamp.fromNSec(1000 * pointCloudInput->header.stamp);
+  // FIXME: get_logger() causes SEGFAULT
+  // RCLCPP_DEBUG(nodeHandle_->get_logger(), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
+  
+  // Update transformation at timestamp of pointcloud   
+  rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloudInput->header.stamp);
   if (!updateTransformations(timeStamp)) {
     return false;
   }
@@ -92,15 +100,16 @@ bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput
   return computeVariances(pointCloudSensorFrame, robotPoseCovariance, variances);
 }
 
-bool SensorProcessorBase::updateTransformations(const ros::Time& timeStamp) {
+bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
   try {
 
-    geometry_msgs::TransformStamped transformGeom;
-    transformGeom = transformBuffer_.lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp, ros::Duration(1.0));
+    geometry_msgs::msg::TransformStamped transformGeom;
+    // FIXME: lookupTransform sometimes gets stuck
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp, rclcpp::Duration::from_seconds(1.0));
     transformationSensorToMap_ = tf2::transformToEigen(transformGeom);
 
-    transformGeom = transformBuffer_.lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
-                                                      ros::Duration(1.0));  // TODO(max): Why wrong direction?
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
+                                                      rclcpp::Duration(1.0));  // TODO(max): Why wrong direction?
     Eigen::Quaterniond rotationQuaternion;
     tf2::fromMsg(transformGeom.transform.rotation, rotationQuaternion);
     rotationBaseToSensor_.setMatrix(rotationQuaternion.toRotationMatrix());
@@ -108,8 +117,8 @@ bool SensorProcessorBase::updateTransformations(const ros::Time& timeStamp) {
     tf2::fromMsg(transformGeom.transform.translation, translationVector);
     translationBaseToSensorInBaseFrame_.toImplementation() = translationVector;
 
-    transformGeom = transformBuffer_.lookupTransform(generalParameters_.mapFrameId_, generalParameters_.robotBaseFrameId_,
-                                                    timeStamp, ros::Duration(1.0));  // TODO(max): Why wrong direction?
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, generalParameters_.robotBaseFrameId_,
+                                                    timeStamp, rclcpp::Duration(1.0));  // TODO(max): Why wrong direction?
     tf2::fromMsg(transformGeom.transform.rotation, rotationQuaternion);
     rotationMapToBase_.setMatrix(rotationQuaternion.toRotationMatrix());
     tf2::fromMsg(transformGeom.transform.translation, translationVector);
@@ -124,28 +133,29 @@ bool SensorProcessorBase::updateTransformations(const ros::Time& timeStamp) {
     if (!firstTfAvailable_) {
       return false;
     }
-    ROS_ERROR("%s", ex.what());
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "%s", ex.what());
     return false;
   }
 }
 
 bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointCloud, PointCloudType::Ptr pointCloudTransformed,
                                               const std::string& targetFrame) {
-  ros::Time timeStamp;
-  timeStamp.fromNSec(1000 * pointCloud->header.stamp);
+  rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloud->header.stamp);  
   const std::string inputFrameId(pointCloud->header.frame_id);
 
   try {
-    geometry_msgs::TransformStamped transformGeom;
-    transformGeom = transformBuffer_.lookupTransform(targetFrame, inputFrameId, timeStamp, ros::Duration(1.0));  // FIXME: missing 0.001 retry duration
+    geometry_msgs::msg::TransformStamped transformGeom;
+    transformGeom = transformBuffer_->lookupTransform(targetFrame, inputFrameId, timeStamp, rclcpp::Duration(1.0));  // FIXME: missing 0.001 retry duration
     Eigen::Affine3d transform = tf2::transformToEigen(transformGeom);
     pcl::transformPointCloud(*pointCloud, *pointCloudTransformed, transform.cast<float>());
     pointCloudTransformed->header.frame_id = targetFrame;
+    rclcpp::Clock clock;
 
-    ROS_DEBUG_THROTTLE(5, "Point cloud transformed to frame %s for time stamp %f.", targetFrame.c_str(),
-                      pointCloudTransformed->header.stamp / 1000.0);
+    // FIXME: get_logger() causes SEGFAULT
+    //RCLCPP_DEBUG_THROTTLE(nodeHandle_->get_logger(), clock, 5, "Point cloud transformed to frame %s for time stamp %f.", targetFrame.c_str(),
+    //                  pointCloudTransformed->header.stamp / 1000.0);
   } catch (tf2::TransformException& ex) {
-    ROS_ERROR("%s", ex.what());
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "%s", ex.what());
     return false;
   }
 
@@ -156,8 +166,9 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
   if (!std::isfinite(ignorePointsLowerThreshold_) && !std::isfinite(ignorePointsUpperThreshold_)) {
     return;
   }
-  ROS_DEBUG("Limiting point cloud to the height interval of [%f, %f] relative to the robot base.", ignorePointsLowerThreshold_,
-            ignorePointsUpperThreshold_);
+  // FIXME: get_logger segfault
+  //RCLCPP_DEBUG(nodeHandle_->get_logger(), "Limiting point cloud to the height interval of [%f, %f] relative to the robot base.", ignorePointsLowerThreshold_,
+  //          ignorePointsUpperThreshold_);
 
   pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter(true);
   passThroughFilter.setInputCloud(reference);
@@ -176,8 +187,8 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
     extractIndicesFilter.filter(tempPointCloud);
     pointCloud->swap(tempPointCloud);
   }
-
-  ROS_DEBUG("removePointsOutsideLimits() reduced point cloud to %i points.", (int)pointClouds[0]->size());
+  // FIXME:
+  //RCLCPP_DEBUG(nodeHandle_->get_logger(), "removePointsOutsideLimits() reduced point cloud to %i points.", (int)pointClouds[0]->size());
 }
 
 bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud) {
@@ -200,7 +211,9 @@ bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud)
     voxelGridFilter.filter(tempPointCloud);
     pointCloud->swap(tempPointCloud);
   }
-  ROS_DEBUG_THROTTLE(2, "cleanPointCloud() reduced point cloud to %i points.", static_cast<int>(pointCloud->size()));
+  rclcpp::Clock clock;
+  // FIXME: get_logger causes SEGFAULT
+  //RCLCPP_DEBUG_THROTTLE(nodeHandle_->get_logger(), clock, 2, "cleanPointCloud() reduced point cloud to %i points.", static_cast<int>(pointCloud->size()));
   return true;
 }
 

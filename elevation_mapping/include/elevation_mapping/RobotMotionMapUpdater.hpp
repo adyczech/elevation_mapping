@@ -18,7 +18,7 @@
 #include <kindr/Core>
 
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace elevation_mapping {
 
@@ -36,7 +36,7 @@ class RobotMotionMapUpdater {
   /*!
    * Constructor.
    */
-  explicit RobotMotionMapUpdater(ros::NodeHandle nodeHandle);
+  explicit RobotMotionMapUpdater(std::shared_ptr<rclcpp::Node> nodeHandle);
 
   /*!
    * Destructor.
@@ -58,7 +58,7 @@ class RobotMotionMapUpdater {
    * @param[in] time the time of the current update.
    * @return true if successful.
    */
-  bool update(ElevationMap& map, const Pose& robotPose, const PoseCovariance& robotPoseCovariance, const ros::Time& time);
+  bool update(ElevationMap& map, const Pose& robotPose, const PoseCovariance& robotPoseCovariance, const rclcpp::Time& time);
 
  private:
   /*!
@@ -80,10 +80,10 @@ class RobotMotionMapUpdater {
   bool computeRelativeCovariance(const Pose& robotPose, const ReducedCovariance& reducedCovariance, ReducedCovariance& relativeCovariance);
 
   //! ROS nodehandle.
-  ros::NodeHandle nodeHandle_;
+  std::shared_ptr<rclcpp::Node> nodeHandle_;
 
   //! Time of the previous update.
-  ros::Time previousUpdateTime_;
+  rclcpp::Time previousUpdateTime_;
 
   //! Previous robot pose.
   Pose previousRobotPose_;

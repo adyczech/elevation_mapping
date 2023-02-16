@@ -23,22 +23,40 @@ namespace elevation_mapping {
  * C. V., Izadi, S., & Lovell, D., Modeling Kinect Sensor Noise for Improved 3D Reconstruction and Tracking, 2012.
  */
 
-StructuredLightSensorProcessor::StructuredLightSensorProcessor(ros::NodeHandle& nodeHandle,
+StructuredLightSensorProcessor::StructuredLightSensorProcessor(std::shared_ptr<rclcpp::Node>& nodeHandle,
                                                                const SensorProcessorBase::GeneralParameters& generalParameters)
     : SensorProcessorBase(nodeHandle, generalParameters) {}
 
 StructuredLightSensorProcessor::~StructuredLightSensorProcessor() = default;
 
-bool StructuredLightSensorProcessor::readParameters() {
-  SensorProcessorBase::readParameters();
-  nodeHandle_.param("sensor_processor/normal_factor_a", sensorParameters_["normal_factor_a"], 0.0);
-  nodeHandle_.param("sensor_processor/normal_factor_b", sensorParameters_["normal_factor_b"], 0.0);
-  nodeHandle_.param("sensor_processor/normal_factor_c", sensorParameters_["normal_factor_c"], 0.0);
-  nodeHandle_.param("sensor_processor/normal_factor_d", sensorParameters_["normal_factor_d"], 0.0);
-  nodeHandle_.param("sensor_processor/normal_factor_e", sensorParameters_["normal_factor_e"], 0.0);
-  nodeHandle_.param("sensor_processor/lateral_factor", sensorParameters_["lateral_factor"], 0.0);
-  nodeHandle_.param("sensor_processor/cutoff_min_depth", sensorParameters_["cutoff_min_depth"], std::numeric_limits<double>::min());
-  nodeHandle_.param("sensor_processor/cutoff_max_depth", sensorParameters_["cutoff_max_depth"], std::numeric_limits<double>::max());
+bool StructuredLightSensorProcessor::readParameters(std::string& inputSourceName) {
+  SensorProcessorBase::readParameters(inputSourceName);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_a", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_b", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_c", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_d", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_e", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.lateral_factor", rclcpp::ParameterValue(0.0));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.cutoff_min_depth", rclcpp::ParameterValue(std::numeric_limits<double>::min()));
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.cutoff_max_depth", rclcpp::ParameterValue(std::numeric_limits<double>::max()));
+  
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.normal_factor_a", sensorParameters_["normal_factor_a"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.normal_factor_b", sensorParameters_["normal_factor_b"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.normal_factor_c", sensorParameters_["normal_factor_c"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.normal_factor_d", sensorParameters_["normal_factor_d"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.normal_factor_e", sensorParameters_["normal_factor_e"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.lateral_factor", sensorParameters_["lateral_factor"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.cutoff_min_depth", sensorParameters_["cutoff_min_depth"]);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.cutoff_max_depth", sensorParameters_["cutoff_max_depth"]);
+
+  // nodeHandle_.param("sensor_processor/normal_factor_a", sensorParameters_["normal_factor_a"], 0.0);
+  // nodeHandle_.param("sensor_processor/normal_factor_b", sensorParameters_["normal_factor_b"], 0.0);
+  // nodeHandle_.param("sensor_processor/normal_factor_c", sensorParameters_["normal_factor_c"], 0.0);
+  // nodeHandle_.param("sensor_processor/normal_factor_d", sensorParameters_["normal_factor_d"], 0.0);
+  // nodeHandle_.param("sensor_processor/normal_factor_e", sensorParameters_["normal_factor_e"], 0.0);
+  // nodeHandle_.param("sensor_processor/lateral_factor", sensorParameters_["lateral_factor"], 0.0);
+  // nodeHandle_.param("sensor_processor/cutoff_min_depth", sensorParameters_["cutoff_min_depth"], std::numeric_limits<double>::min());
+  // nodeHandle_.param("sensor_processor/cutoff_max_depth", sensorParameters_["cutoff_max_depth"], std::numeric_limits<double>::max());
   return true;
 }
 

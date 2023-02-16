@@ -10,8 +10,7 @@
 
 #include "elevation_mapping/input_sources/Input.hpp"
 
-#include <XmlRpc.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace elevation_mapping {
 class ElevationMapping;  // Forward declare to avoid cyclic import dependency.
@@ -26,7 +25,7 @@ class InputSourceManager {
    * @brief Constructor.
    * @param nodeHandle Used to resolve the namespace and setup the subscribers.
    */
-  explicit InputSourceManager(const ros::NodeHandle& nodeHandle);
+  explicit InputSourceManager(const std::shared_ptr<rclcpp::Node>& nodeHandle);
 
   /**
    * @brief Configure the input sources from a configuration stored on the
@@ -43,8 +42,8 @@ class InputSourceManager {
    * @param sourceConfigurationName The name of the input source configuration.
    * @return True if configuring was successful.
    */
-  bool configure(const XmlRpc::XmlRpcValue& parameters, const std::string& sourceConfigurationName);
-
+  bool configure(const std::vector<std::string>& parameters, const std::string& sourceConfigurationName);
+    
   /**
    * @brief Registers the corresponding callback in the elevationMap.
    * @param map The map we want to link the input sources to.
@@ -68,7 +67,7 @@ class InputSourceManager {
   std::vector<Input> sources_;
 
   //! Node handle to load.
-  ros::NodeHandle nodeHandle_;
+  std::shared_ptr<rclcpp::Node> nodeHandle_;
 };
 
 // Template definitions
@@ -76,7 +75,7 @@ class InputSourceManager {
 template <typename... MsgT>
 bool InputSourceManager::registerCallbacks(ElevationMapping& map, std::pair<const char*, Input::CallbackT<MsgT>>... callbacks) {
   if (sources_.empty()) {
-    ROS_WARN("Not registering any callbacks, no input sources given. Did you configure the InputSourceManager?");
+    RCLCPP_WARN(nodeHandle_->get_logger(), "Not registering any callbacks, no input sources given. Did you configure the InputSourceManager?");
     return true;
   }
   for (Input& source : sources_) {
@@ -88,10 +87,10 @@ bool InputSourceManager::registerCallbacks(ElevationMapping& map, std::pair<cons
       }
     }
     if (not callbackRegistered) {
-      ROS_WARN("The configuration contains input sources of an unknown type: %s", source.getType().c_str());
-      ROS_WARN("Available types are:");
+      RCLCPP_WARN(nodeHandle_->get_logger(), "The configuration contains input sources of an unknown type: %s", source.getType().c_str());
+      RCLCPP_WARN(nodeHandle_->get_logger(), "Available types are:");
       for (auto& callback : {callbacks...}) {
-        ROS_WARN("- %s", callback.first);
+        RCLCPP_WARN(nodeHandle_->get_logger(), "- %s", callback.first);
       }
       return false;
     }
