@@ -8,6 +8,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ament_cmake REQUIRED)
@@ -126,9 +130,18 @@ add_executable(${PROJECT_NAME}
   src/elevation_mapping_node.cpp
 )
 
+add_executable(listener
+  src/test.cpp
+)
+
 ament_target_dependencies(${PROJECT_NAME}
   ${DEPENDENCIES}
 )
+
+ament_target_dependencies(listener
+  ${DEPENDENCIES}
+)
+
 
 target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}_library
@@ -149,6 +162,7 @@ install(TARGETS
 
 install(TARGETS
   ${PROJECT_NAME}
+  listener
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -169,6 +183,13 @@ install(TARGETS
 ##########
 ## Test ##
 ##########
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_lint_auto_find_test_dependencies()
+
+
 
 # if(CATKIN_ENABLE_TESTING)
 #   find_package(catkin REQUIRED
@@ -200,27 +221,26 @@ install(TARGETS
 #       ${catkin_INCLUDE_DIRS}
 #   )
 
-#   # Input sources
-#   add_rostest_gtest(test_${PROJECT_NAME}_input_sources
-#     test/input_sources/input_sources.test
-#     test/input_sources/test_input_sources.cpp
-#     test/input_sources/InputSourcesTest.cpp
-#   )
+  # Input sources
+  ament_add_gtest(test_${PROJECT_NAME}_input_sources
+    test/input_sources/input_sources.test
+    test/input_sources/test_input_sources.cpp
+    test/input_sources/InputSourcesTest.cpp
+  )
 
-#   target_link_libraries(test_${PROJECT_NAME}_input_sources
-#     ${PROJECT_NAME}_library
-#   )
+  target_link_libraries(test_${PROJECT_NAME}_input_sources
+    ${PROJECT_NAME}_library
+  )
 
-#   target_include_directories(test_${PROJECT_NAME}_input_sources
-#     PRIVATE
-#       include
-#   )
+  target_include_directories(test_${PROJECT_NAME}_input_sources
+    PRIVATE
+      include
+  )
 
-#   target_include_directories(test_${PROJECT_NAME}_input_sources SYSTEM PUBLIC
-#     ${Boost_INCLUDE_DIRS}
-#     ${catkin_INCLUDE_DIRS}
-#     ${Eigen_INCLUDE_DIRS}
-#   )
+  target_include_directories(test_${PROJECT_NAME}_input_sources SYSTEM PUBLIC
+    ${Boost_INCLUDE_DIRS}
+    ${Eigen_INCLUDE_DIRS}
+  )
 
 #   # Postprocessor
 #   add_rostest_gtest(test_${PROJECT_NAME}_postprocessor
@@ -255,7 +275,7 @@ install(TARGETS
 #         test_${PROJECT_NAME}_postprocessor
 #       )
 #   endif()
-# endif()
+endif()
 
 ###########
 ## Clang ##

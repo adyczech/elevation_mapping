@@ -273,6 +273,7 @@ class ElevationMapping {
   //! ROS subscribers.  
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudSubscriber_;  //!< Deprecated, use input_source instead.
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr dummySubscriber_;
 
   //! ROS service servers.
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr fusionTriggerService_;

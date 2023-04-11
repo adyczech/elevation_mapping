@@ -9,7 +9,7 @@
 #include "elevation_mapping/ElevationMap.hpp"
 #include "grid_map_core/GridMap.hpp"
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 // gtest
 #include <gtest/gtest.h>

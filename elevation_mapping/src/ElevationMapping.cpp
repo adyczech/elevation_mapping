@@ -70,8 +70,8 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
 
   readParameters();
   setupSubscribers();
-  setupServices();
-  setupTimers();
+  // setupServices();
+  // setupTimers();
 
   transformBuffer_ = std::make_shared<tf2_ros::Buffer>(nodeHandle_->get_clock());
   transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
@@ -87,15 +87,17 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   if (hasDeprecatedPointcloudTopic) {
     RCLCPP_WARN(nodeHandle_->get_logger(), "Parameter 'point_cloud_topic' is deprecated, please use 'input_sources' instead.");
   }
-  if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
+  /*if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
     pointCloudSubscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(        
         pointCloudTopic_, 1, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {pointCloudCallback(msg, true, sensorProcessor_);});
-  }    
-  auto res = nodeHandle_->get_topic_names_and_types();
+  }*/   
+  //auto res = nodeHandle_->get_topic_names_and_types();
   if (configuredInputSources) {
     inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
     // inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", pointCloudCallback));
   }
+
+  //dummySubscriber_ = nodeHandle_->create_subscription<std_msgs::msg::String>("topic", 10, std::bind(&ElevationMapping::dummySub, this, std::placeholders::_1));
 
   if (!robotPoseTopic_.empty()) {
     robotPoseSubscriber_.subscribe(nodeHandle_, robotPoseTopic_);
@@ -106,11 +108,11 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   }
 }
 
-/*void ElevationMapping::dummySub(std_msgs::msg::String::SharedPtr msg){
+void ElevationMapping::dummySub(std_msgs::msg::String::SharedPtr msg){
   RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: '%s'", msg->data.c_str());
   auto data = msg->data;
 }
-
+/*
 void ElevationMapping::dummyMethod(sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishOnUpdate, const SensorProcessorBase::Ptr& sensorProcessor_){
   RCLCPP_INFO(nodeHandle_->get_logger(), "I was called %d", pointCloudMsg->height);
   if (!sensorProcessor_->isTfAvailableInBuffer()) {RCLCPP_INFO(nodeHandle_->get_logger(), "asddddddddddd");}
@@ -476,6 +478,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   }
 
   if (publishPointCloud) {
+    RCLCPP_INFO(nodeHandle_->get_logger(), "Publishing pcl.");
     // Publish elevation map.
     map_.postprocessAndPublishRawElevationMap();
     if (isFusingEnabled()) {
