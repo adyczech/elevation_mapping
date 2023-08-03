@@ -8,10 +8,12 @@ Changes in ROS2 version:
 - `point_cloud_topic` parameter was removed
 - `input_sources` parameter was introduced to specify list of input sources eg. `["top", "front"]`
 - Individual input sources are specified as a parameter group. The name of input source has to match one in the list.
-- Post processing filters has to respect new config style introduced in ROS2 
+- Post processing filters has to respect new config style introduced in ROS2, see grid_map ROS2 branch (filters demo)
+- Added cropbox filter into input processing
 
 Port TODO list:
 - [x] Port of barebone functionality
+- [ ] Fix all new bugs created during porting
 - [ ] Timers and timer callbacks
 - [ ] Fix multithreading
 - [ ] Port demos
