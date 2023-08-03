@@ -2,7 +2,7 @@
 
 ## PORT TO ROS2
 
-This is quick and dirty port of elevation mapping to ROS2.
+This is quick and dirty port of elevation mapping to ROS2. Tested in ROS2 foxy.
 
 Changes in ROS2 version:
 - `point_cloud_topic` parameter was removed
