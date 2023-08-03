@@ -26,6 +26,7 @@
 
 // PCL
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
+#include "elevation_mapping/ThreadSafeDataWrapper.hpp"
 
 namespace elevation_mapping {
 
@@ -165,17 +166,46 @@ class SensorProcessorBase {
   //! TF frame id of the range sensor for the point clouds.
   std::string sensorFrameId_;
 
-  //! Ignore points above this height in map frame.
+  /*//! Ignore points above this height in map frame.
   double ignorePointsUpperThreshold_;
 
   //! Ignore points below this height in map frame.
-  double ignorePointsLowerThreshold_;
+  double ignorePointsLowerThreshold_;*/
+
+  struct Parameters {
+    //! Ignore points above this height in map frame.
+    double ignorePointsUpperThreshold_{std::numeric_limits<double>::infinity()};
+
+    //! Ignore points below this height in map frame.
+    double ignorePointsLowerThreshold_{-std::numeric_limits<double>::infinity()};
+
+    //! Ignore points inside this box with min_x in map frame.
+    double ignorePointsInsideMinX_{0};
+    //! Ignore points inside this box with max_x in map frame.
+    double ignorePointsInsideMaxX_{0};
+    //! Ignore points inside this box with min_y in map frame.
+    double ignorePointsInsideMinY_{0};
+    //! Ignore points inside this box with max_y in map frame.
+    double ignorePointsInsideMaxY_{0};
+    //! Ignore points inside this box with min_z in map frame.
+    double ignorePointsInsideMinZ_{0};
+    //! Ignore points inside this box with max_z in map frame.
+    double ignorePointsInsideMaxZ_{0};
+
+    //! Use VoxelGrid filter to cleanup pointcloud if true.
+    bool applyVoxelGridFilter_{false};
+
+    //! Sensor parameters.
+    std::unordered_map<std::string, double> sensorParameters_;
+  };
+
+  ThreadSafeDataWrapper<Parameters> parameters_;
 
   //! Sensor parameters.
   std::unordered_map<std::string, double> sensorParameters_;
 
   //! Use VoxelGrid filter to cleanup pointcloud if true.
-  bool applyVoxelGridFilter_;
+  //bool applyVoxelGridFilter_;
 
   //! Indicates if the requested tf transformation was available.
   bool firstTfAvailable_;

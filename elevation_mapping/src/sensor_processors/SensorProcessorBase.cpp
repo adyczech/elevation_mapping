@@ -17,6 +17,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/crop_box.h>
 #include <pcl/pcl_base.h>
 
 // TF
@@ -34,9 +35,9 @@ namespace elevation_mapping {
 SensorProcessorBase::SensorProcessorBase(std::shared_ptr<rclcpp::Node>& nodeHandle, const GeneralParameters& generalConfig)
     : nodeHandle_(nodeHandle),
       // transformListener_(std::make_shared<tf2_ros::TransformListener>(*transformBuffer_)),
-      ignorePointsUpperThreshold_(std::numeric_limits<double>::infinity()),
-      ignorePointsLowerThreshold_(-std::numeric_limits<double>::infinity()),
-      applyVoxelGridFilter_(false),
+      // ignorePointsUpperThreshold_(std::numeric_limits<double>::infinity()),
+      // ignorePointsLowerThreshold_(-std::numeric_limits<double>::infinity()),
+      //applyVoxelGridFilter_(false),
       firstTfAvailable_(false) {
   transformBuffer_ = std::make_shared<tf2_ros::Buffer>(nodeHandle_->get_clock());
   transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
@@ -54,24 +55,42 @@ SensorProcessorBase::SensorProcessorBase(std::shared_ptr<rclcpp::Node>& nodeHand
 SensorProcessorBase::~SensorProcessorBase() = default;
 
 bool SensorProcessorBase::readParameters(std::string& inputSourceName) {
+  Parameters parameters;
+
   // TODO: Add parameter validation
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_above", rclcpp::ParameterValue(std::numeric_limits<double>::infinity()));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_below", rclcpp::ParameterValue(-std::numeric_limits<double>::infinity()));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", rclcpp::ParameterValue(false));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", rclcpp::ParameterValue(0.0));
 
-  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_above", ignorePointsUpperThreshold_);
-  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_below", ignorePointsLowerThreshold_);
-  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", applyVoxelGridFilter_);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_x", 0.0);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_x", 0.0);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_y", 0.0);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_y", 0.0);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_z", 0.0);
+  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_z", 0.0);
+
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_above", parameters.ignorePointsUpperThreshold_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_below", parameters.ignorePointsLowerThreshold_);
+
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_x", parameters.ignorePointsInsideMinX_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_x", parameters.ignorePointsInsideMaxX_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_y", parameters.ignorePointsInsideMinY_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_y", parameters.ignorePointsInsideMaxY_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_z", parameters.ignorePointsInsideMinZ_);
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_z", parameters.ignorePointsInsideMaxZ_);
+
+  nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", parameters.applyVoxelGridFilter_);
   nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", sensorParameters_["voxelgrid_filter_size"]);
+
+  parameters_.setData(parameters);
   return true;
 }
 
 bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput, const Eigen::Matrix<double, 6, 6>& robotPoseCovariance,
                                   const PointCloudType::Ptr pointCloudMapFrame, Eigen::VectorXf& variances, std::string sensorFrame) {
   sensorFrameId_ = sensorFrame;
-  // FIXME: get_logger() causes SEGFAULT
-  // RCLCPP_DEBUG(nodeHandle_->get_logger(), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
+  RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
   
   // Update transformation at timestamp of pointcloud   
   rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloudInput->header.stamp);
@@ -163,7 +182,9 @@ bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointClou
 }
 
 void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr reference, std::vector<PointCloudType::Ptr>& pointClouds) {
-  if (!std::isfinite(ignorePointsLowerThreshold_) && !std::isfinite(ignorePointsUpperThreshold_)) {
+  const Parameters parameters{parameters_.getData()};
+  //TODO: Update condition to include ignore inside
+  if (!std::isfinite(parameters.ignorePointsLowerThreshold_) && !std::isfinite(parameters.ignorePointsUpperThreshold_)) {
     return;
   }
   // FIXME: get_logger segfault
@@ -173,8 +194,8 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
   pcl::PassThrough<pcl::PointXYZRGBConfidenceRatio> passThroughFilter(true);
   passThroughFilter.setInputCloud(reference);
   passThroughFilter.setFilterFieldName("z");  // TODO(max): Should this be configurable?
-  double relativeLowerThreshold = translationMapToBaseInMapFrame_.z() + ignorePointsLowerThreshold_;
-  double relativeUpperThreshold = translationMapToBaseInMapFrame_.z() + ignorePointsUpperThreshold_;
+  double relativeLowerThreshold = translationMapToBaseInMapFrame_.z() + parameters.ignorePointsLowerThreshold_;
+  double relativeUpperThreshold = translationMapToBaseInMapFrame_.z() + parameters.ignorePointsUpperThreshold_;
   passThroughFilter.setFilterLimits(relativeLowerThreshold, relativeUpperThreshold);
   pcl::IndicesPtr insideIndeces(new std::vector<int>);
   passThroughFilter.filter(*insideIndeces);
@@ -187,11 +208,34 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
     extractIndicesFilter.filter(tempPointCloud);
     pointCloud->swap(tempPointCloud);
   }
-  // FIXME:
-  //RCLCPP_DEBUG(nodeHandle_->get_logger(), "removePointsOutsideLimits() reduced point cloud to %i points.", (int)pointClouds[0]->size());
+  RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "removePointsOutsideLimits() pass reduced point cloud to %i points.", (int)pointClouds[0]->size());
+   
+  pcl::CropBox<pcl::PointXYZRGBConfidenceRatio> cropBoxFilter(true); // true-returns indices
+  cropBoxFilter.setInputCloud(pointClouds[0]);
+  cropBoxFilter.setNegative(true); // remove points inside the box
+  cropBoxFilter.setMin(Eigen::Vector4f(parameters.ignorePointsInsideMinX_ + translationMapToBaseInMapFrame_.x(),
+                                       parameters.ignorePointsInsideMinY_ + translationMapToBaseInMapFrame_.y(),
+                                       parameters.ignorePointsInsideMinZ_ + translationMapToBaseInMapFrame_.z(), 1.0f));
+  cropBoxFilter.setMax(Eigen::Vector4f(parameters.ignorePointsInsideMaxX_ + translationMapToBaseInMapFrame_.x(),
+                                       parameters.ignorePointsInsideMaxY_ + translationMapToBaseInMapFrame_.y(),
+                                       parameters.ignorePointsInsideMaxZ_ + translationMapToBaseInMapFrame_.z(), 1.0f));
+  pcl::IndicesPtr insideIndecesCropBox(new std::vector<int>);
+  cropBoxFilter.filter(*insideIndecesCropBox);  
+
+  for (auto& pointCloud : pointClouds) {
+    pcl::ExtractIndices<pcl::PointXYZRGBConfidenceRatio> extractIndicesFilter;
+    extractIndicesFilter.setInputCloud(pointCloud);
+    extractIndicesFilter.setIndices(insideIndecesCropBox);
+    PointCloudType tempPointCloud;
+    extractIndicesFilter.filter(tempPointCloud);
+    pointCloud->swap(tempPointCloud);
+  }
+  RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "removePointsOutsideLimits() box reduced point cloud to %i points.", (int)pointClouds[0]->size());
 }
 
 bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud) {
+  const Parameters parameters{parameters_.getData()};
+
   PointCloudType tempPointCloud;
 
   // Remove nan points.
@@ -203,7 +247,7 @@ bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud)
   }
 
   // Reduce points using VoxelGrid filter.
-  if (applyVoxelGridFilter_) {
+  if (parameters.applyVoxelGridFilter_) {
     pcl::VoxelGrid<pcl::PointXYZRGBConfidenceRatio> voxelGridFilter;
     voxelGridFilter.setInputCloud(pointCloud);
     double filter_size = sensorParameters_.at("voxelgrid_filter_size");

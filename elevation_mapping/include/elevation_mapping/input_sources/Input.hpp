@@ -98,43 +98,15 @@ class Input {
   ThreadSafeDataWrapper<Parameters> parameters_;
 };
 
- template <typename MsgT>
+template <typename MsgT>
 void Input::registerCallback(ElevationMapping& map, CallbackT<MsgT> callback) {
   const Parameters parameters{parameters_.getData()};
+
+  std::function<void(sensor_msgs::msg::PointCloud2::ConstSharedPtr msg)> bound_callback_func =
+  std::bind(callback, std::ref(map), std::placeholders::_1, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
+
   subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(parameters.topic_, parameters.queueSize_,
-    [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
-      map.pointCloudCallback(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
-    });
-// Error: (map.*callback)      (map.*(callback))
-// Not compiled: (map->*callback)       (map::*callback)
-  // Funguje:
-  // subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(        
-      // parameters.topic_, parameters.queueSize_, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: point cloud");});  
-    
-    
-        // [ref]
-        //callback(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));});
-      // parameters.topic_, parameters.queueSize_,
-      // std::bind(callback, std::ref(map), std::placeholders::_1, parameters.publishOnUpdate_, std::ref(sensorProcessor_)));
-      // ((map).*(callback))
-  /*dummy_subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>("pc_test", parameters.queueSize_,
-      [this](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
-        RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: pc_test");
-      });*/
-
-  /*dummy_subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>("pc_test", parameters.queueSize_,
-      [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
-        map.dummyMethod(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
-      });*/
-
-  // FIXME:
-  //map.pointCloudCallback - works
-  //(map.*callback) - causes segfault
-
-  /*dummy_subscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>("pc_test", parameters.queueSize_,
-      [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
-        (map.*callback)(msg, parameters.publishOnUpdate_, std::ref(sensorProcessor_));
-      });*/
+    bound_callback_func);
   
   RCLCPP_INFO(nodeHandle_->get_logger(), "Subscribing to %s: %s, queue_size: %i.", parameters.type_.c_str(), parameters.topic_.c_str(), parameters.queueSize_);
 }

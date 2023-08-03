@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "light": "cpp",
+        "primitiveset": "cpp",
+        "shader": "cpp",
+        "texture": "cpp",
+        "uniform": "cpp",
+        "*.ipp": "cpp",
+        "string_view": "cpp",
+        "mixinvector": "cpp",
+        "polytope": "cpp",
+        "vertexarraystate": "cpp",
+        "buffered_value": "cpp",
+        "fast_back_stack": "cpp",
+        "map": "cpp",
+        "state": "cpp",
+        "program": "cpp"
+    }
+}

@@ -95,6 +95,8 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   if (configuredInputSources) {
     inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
     // inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", pointCloudCallback));
+  } else {
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "Input sources not configured!");
   }
 
   //dummySubscriber_ = nodeHandle_->create_subscription<std_msgs::msg::String>("topic", 10, std::bind(&ElevationMapping::dummySub, this, std::placeholders::_1));
