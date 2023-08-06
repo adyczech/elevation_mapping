@@ -356,8 +356,8 @@ class ElevationMapping {
   //! Duration for the raytracing cleanup timer.
   rclcpp::Duration visibilityCleanupTimerDuration_;
 
-  //! Callback queue for raytracing cleanup thread.
-  rclcpp::callback_group::CallbackGroup::SharedPtr visibilityCleanupQueue_;
+  //! Callback qroup for raytracing cleanup thread.
+  rclcpp::CallbackGroup::SharedPtr visibilityCleanupGroup_;
 
   //! Callback thread for raytracing cleanup.
   boost::thread visibilityCleanupThread_;

@@ -71,7 +71,7 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
   readParameters();
   setupSubscribers();
   // setupServices();
-  // setupTimers();
+  setupTimers();
 
   transformBuffer_ = std::make_shared<tf2_ros::Buffer>(nodeHandle_->get_clock());
   transformListener_ = std::make_shared<tf2_ros::TransformListener>(*transformBuffer_);
@@ -82,6 +82,13 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
 }
 
 void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_topic and input_sources configuration.
+  // TODO: Only for testing - REMOVE
+  // rclcpp::sleep_for(std::chrono::seconds(5));
+  auto res = nodeHandle_->get_topic_names_and_types();
+  for (auto a:res){
+    RCLCPP_INFO(nodeHandle_->get_logger(), "topic: %s", a.first.c_str());
+  }
+
   const bool configuredInputSources = inputSources_.configureFromRos("input_sources");
   const bool hasDeprecatedPointcloudTopic = nodeHandle_->get_parameter("point_cloud_topic", pointCloudTopic_);
   if (hasDeprecatedPointcloudTopic) {
@@ -90,8 +97,7 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   /*if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
     pointCloudSubscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(        
         pointCloudTopic_, 1, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {pointCloudCallback(msg, true, sensorProcessor_);});
-  }*/   
-  //auto res = nodeHandle_->get_topic_names_and_types();
+  }*/       
   if (configuredInputSources) {
     inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
     // inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", pointCloudCallback));
@@ -99,6 +105,7 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Input sources not configured!");
   }
 
+  // TODO: Only for testing - REMOVE
   //dummySubscriber_ = nodeHandle_->create_subscription<std_msgs::msg::String>("topic", 10, std::bind(&ElevationMapping::dummySub, this, std::placeholders::_1));
 
   if (!robotPoseTopic_.empty()) {
@@ -110,6 +117,7 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   }
 }
 
+// TODO: Only for testing - REMOVE
 void ElevationMapping::dummySub(std_msgs::msg::String::SharedPtr msg){
   RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: '%s'", msg->data.c_str());
   auto data = msg->data;
@@ -147,13 +155,15 @@ void ElevationMapping::setupTimers() {
   //   fusedMapPublishTimer_ = nodeHandle_.createTimer(timerOptions);
   // }
 
-  // // Multi-threading for visibility cleanup. Visibility clean-up does not help when continuous clean-up is enabled.
-  // if (map_.enableVisibilityCleanup_ && (visibilityCleanupTimerDuration_.seconds() != 0.0) && !map_.enableContinuousCleanup_) {
-  //   ros::TimerOptions timerOptions =
-  //       ros::TimerOptions(visibilityCleanupTimerDuration_, boost::bind(&ElevationMapping::visibilityCleanupCallback, this, _1),
-  //                         &visibilityCleanupQueue_, false, false);
-  //   visibilityCleanupTimer_ = nodeHandle_.createTimer(timerOptions);
-  // }
+  // Multi-threading for visibility cleanup. Visibility clean-up does not help when continuous clean-up is enabled.
+  if (map_.enableVisibilityCleanup_ && (visibilityCleanupTimerDuration_.seconds() != 0.0) && !map_.enableContinuousCleanup_) {
+    visibilityCleanupTimer_ = rclcpp::create_timer(
+      nodeHandle_, nodeHandle_->get_clock(), visibilityCleanupTimerDuration_,
+      std::bind(&ElevationMapping::visibilityCleanupCallback, this));
+    // visibilityCleanupTimer_->cancel(); //TODO:foxy does not have timer autostart flag implemented, fix in future version
+    //TODO: timer reset issue: https://github.com/ros2/rclcpp/issues/1012
+    //TODO: run cleanup in a separate thread   
+  }
 }
 
 ElevationMapping::~ElevationMapping() {
@@ -170,7 +180,7 @@ ElevationMapping::~ElevationMapping() {
   }
 
   {  // Visibility cleanup queue
-    // visibilityCleanupTimer_->cancel();
+    visibilityCleanupTimer_->cancel();
 
     // visibilityCleanupQueue_.disable();
     // visibilityCleanupQueue_.clear();
@@ -352,7 +362,7 @@ bool ElevationMapping::initialize() {
   // resetMapUpdateTimer();
   // fusedMapPublishTimer_.start();
   // visibilityCleanupThread_ = boost::thread(boost::bind(&ElevationMapping::visibilityCleanupThread, this));
-  // visibilityCleanupTimer_.start();
+  // visibilityCleanupTimer_.reset();  //TODO:foxy does not have timer autostart flag implemented, fix in future version
   initializeElevationMap();
   return true;
 }
