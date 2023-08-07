@@ -2,22 +2,24 @@
 
 ## PORT TO ROS2
 
-This is quick and dirty port of elevation mapping to ROS2. Tested in ROS2 foxy.
+This is a quick port of [Robot-Centric Elevation Mapping](https://github.com/ANYbotics/elevation_mapping) to ROS2 based on Aber-CRANC's [tf2 branch](https://github.com/Aber-CRANC/elevation_mapping/tree/tf2).
+Tested in ROS2 foxy.
 
-Changes in ROS2 version:
+### Changes in ROS2 version:
 - `point_cloud_topic` parameter was removed
 - `input_sources` parameter was introduced to specify list of input sources eg. `["top", "front"]`
-- Individual input sources are specified as a parameter group. The name of input source has to match one in the list.
-- Post processing filters has to respect new config style introduced in ROS2, see grid_map ROS2 branch (filters demo)
-- Added cropbox filter into input processing
+- Individual input sources are specified as a parameter group. The name of the input source has to match one in the list.
+- Post processing filters has to respect new config style introduced in ROS2, see grid_map [filters demo](https://github.com/ANYbotics/grid_map/blob/foxy-devel/grid_map_demos/config/filters_demo_filter_chain.yaml)
+- Added cropbox filter into input processing 
 
 Port TODO list:
 - [x] Port of barebone functionality
 - [ ] Fix all new bugs created during porting
-- [ ] Timers and timer callbacks
+- [ ] Timers
+- [ ] Services
 - [ ] Fix multithreading
-- [ ] Port demos
-- [ ] Port testing
+- [ ] Demos
+- [ ] Testing
 
 Dependencies:
 - [grid_map](https://github.com/ANYbotics/grid_map/tree/foxy-devel) - foxy-devel branch
