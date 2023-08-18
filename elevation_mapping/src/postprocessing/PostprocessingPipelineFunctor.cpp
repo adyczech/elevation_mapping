@@ -26,7 +26,8 @@ PostprocessingPipelineFunctor::PostprocessingPipelineFunctor(std::shared_ptr<rcl
   publisher_ = nodeHandle_->create_publisher<grid_map_msgs::msg::GridMap>(outputTopic_, 1);
 
   // Setup filter chain.  
-  if (!nodeHandle->has_parameter("filterChainParametersName_") || !filterChain_.configure(filterChainParametersName_, nodeHandle_->get_node_logging_interface(), nodeHandle_->get_node_parameters_interface())) {
+  if (!nodeHandle->has_parameter("filterChainParametersName_") ||
+      !filterChain_.configure(filterChainParametersName_, nodeHandle_->get_node_logging_interface(), nodeHandle_->get_node_parameters_interface())) {
     RCLCPP_WARN(nodeHandle_->get_logger(), "Could not configure the filter chain. Will publish the raw elevation map without postprocessing!");
     return;
   }

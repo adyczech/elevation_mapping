@@ -21,6 +21,9 @@ Port TODO list:
 - [ ] Demos
 - [ ] Testing
 
+Known Issues:
+- The current ROS2 interpretation of filter chain causes issues with parameter redeclaration when using more than 1 postprocessing thread.
+
 Dependencies:
 - [grid_map](https://github.com/ANYbotics/grid_map/tree/foxy-devel) - foxy-devel branch
     - filters - `sudo apt-get isntall ros-foxy-filters`
