@@ -16,7 +16,7 @@ Port TODO list:
 - [x] Port of barebone functionality
 - [ ] Fix all new bugs created during porting
 - [ ] Timers
-- [ ] Services
+- [x] Services
 - [ ] Fix multithreading
 - [ ] Demos
 - [ ] Testing
