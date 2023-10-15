@@ -70,7 +70,7 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
 
   readParameters();
   setupSubscribers();
-  // setupServices();
+  setupServices();
   setupTimers();
 
   transformBuffer_ = std::make_shared<tf2_ros::Buffer>(nodeHandle_->get_clock());
@@ -104,10 +104,7 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   } else {
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Input sources not configured!");
   }
-
-  // TODO: Only for testing - REMOVE
-  //dummySubscriber_ = nodeHandle_->create_subscription<std_msgs::msg::String>("topic", 10, std::bind(&ElevationMapping::dummySub, this, std::placeholders::_1));
-
+  
   if (!robotPoseTopic_.empty()) {
     robotPoseSubscriber_.subscribe(nodeHandle_, robotPoseTopic_);
     robotPoseCache_.connectInput(robotPoseSubscriber_);
@@ -116,17 +113,6 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
     ignoreRobotMotionUpdates_ = true;
   }
 }
-
-// TODO: Only for testing - REMOVE
-void ElevationMapping::dummySub(std_msgs::msg::String::SharedPtr msg){
-  RCLCPP_INFO(nodeHandle_->get_logger(), "I heard: '%s'", msg->data.c_str());
-  auto data = msg->data;
-}
-/*
-void ElevationMapping::dummyMethod(sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishOnUpdate, const SensorProcessorBase::Ptr& sensorProcessor_){
-  RCLCPP_INFO(nodeHandle_->get_logger(), "I was called %d", pointCloudMsg->height);
-  if (!sensorProcessor_->isTfAvailableInBuffer()) {RCLCPP_INFO(nodeHandle_->get_logger(), "asddddddddddd");}
-}*/
 
 void ElevationMapping::setupServices() {
   // Multi-threading for fusion.  

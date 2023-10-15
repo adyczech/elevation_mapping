@@ -184,8 +184,6 @@ class ElevationMapping {
    */
   bool loadMapServiceCallback(std::shared_ptr<grid_map_msgs::srv::ProcessFile::Request> request, std::shared_ptr<grid_map_msgs::srv::ProcessFile::Response> response);
 
-  void dummyMethod(sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishOnUpdate, const SensorProcessorBase::Ptr& sensorProcessor_);
-
  private:
   /*!
    * Reads and verifies the ROS parameters.
@@ -262,8 +260,6 @@ class ElevationMapping {
    */
   bool isFusingEnabled();
 
-  void dummySub(std_msgs::msg::String::SharedPtr msg);
-
   //! ROS nodehandle.
   std::shared_ptr<rclcpp::Node> nodeHandle_;
 
@@ -273,7 +269,6 @@ class ElevationMapping {
   //! ROS subscribers.  
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudSubscriber_;  //!< Deprecated, use input_source instead.
   message_filters::Subscriber<geometry_msgs::msg::PoseWithCovarianceStamped> robotPoseSubscriber_;
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr dummySubscriber_;
 
   //! ROS service servers.
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr fusionTriggerService_;
