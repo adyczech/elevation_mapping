@@ -68,9 +68,10 @@ class SensorProcessorBase {
   /*!
    * Processes the point cloud.
    * @param[in] pointCloudInput the input point cloud.
-   * @param[in] targetFrame the frame to which the point cloud should be transformed. // TODO Update.
-   * @param[out] pointCloudOutput the processed point cloud.
+   * @param[in] robotPoseCovariance covariance matrix of robot position
+   * @param[out] pointCloudMapFrame the processed point cloud.
    * @param[out] variances the measurement variances expressed in the target frame.
+   * @param[in] sensorFrame the frame id of the sensor.
    * @return true if successful.
    */
   bool process(const PointCloudType::ConstPtr pointCloudInput, const Eigen::Matrix<double, 6, 6>& robotPoseCovariance,

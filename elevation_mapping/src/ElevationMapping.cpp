@@ -82,8 +82,6 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
 }
 
 void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_topic and input_sources configuration.
-  // TODO: Only for testing - REMOVE
-  // rclcpp::sleep_for(std::chrono::seconds(5));
   auto res = nodeHandle_->get_topic_names_and_types();
   for (auto a:res){
     RCLCPP_INFO(nodeHandle_->get_logger(), "topic: %s", a.first.c_str());
@@ -444,7 +442,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
       RCLCPP_INFO_THROTTLE(nodeHandle_->get_logger(), clock, 10, "Waiting for tf transformation to be available. (Message is throttled, 10s.)");
       return;
     }
-    RCLCPP_ERROR(nodeHandle_->get_logger(), "Point cloud could not be processed.");
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "Point cloud could not be processed."); //TODO: what causes this issue
     // resetMapUpdateTimer();
     return;
   }

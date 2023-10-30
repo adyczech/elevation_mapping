@@ -45,11 +45,11 @@ SensorProcessorBase::SensorProcessorBase(std::shared_ptr<rclcpp::Node>& nodeHand
   pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
   transformationSensorToMap_.setIdentity();
   generalParameters_ = generalConfig;
-  RCLCPP_DEBUG(nodeHandle_->get_logger(),
-      "Sensor processor general parameters are:"
-      "\n\t- robot_base_frame_id: %s"
-      "\n\t- map_frame_id: %s",
-      generalConfig.robotBaseFrameId_.c_str(), generalConfig.mapFrameId_.c_str());
+  // RCLCPP_DEBUG(nodeHandle_->get_logger(),
+  //     "Sensor processor general parameters are:"
+  //     "\n\t- robot_base_frame_id: %s"
+  //     "\n\t- map_frame_id: %s",
+  //     generalConfig.robotBaseFrameId_.c_str(), generalConfig.mapFrameId_.c_str());
 }
 
 SensorProcessorBase::~SensorProcessorBase() = default;
@@ -90,30 +90,42 @@ bool SensorProcessorBase::readParameters(std::string& inputSourceName) {
 bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput, const Eigen::Matrix<double, 6, 6>& robotPoseCovariance,
                                   const PointCloudType::Ptr pointCloudMapFrame, Eigen::VectorXf& variances, std::string sensorFrame) {
   sensorFrameId_ = sensorFrame;
-  RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
-  
+  // RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C1");
+
   // Update transformation at timestamp of pointcloud   
   rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloudInput->header.stamp);
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C11");
   if (!updateTransformations(timeStamp)) {
     return false;
   }
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C2");
 
   // Transform into sensor frame.
   PointCloudType::Ptr pointCloudSensorFrame(new PointCloudType);
-  transformPointCloud(pointCloudInput, pointCloudSensorFrame, sensorFrameId_);
+  // FIXME: transformPointCloud seems to be useless since it transfroms from pointcloud frame to the same frame
+  //       sensorFrame is inputpointcloud frame
+  *pointCloudSensorFrame = *pointCloudInput;
+  // transformPointCloud(pointCloudInput, pointCloudSensorFrame, sensorFrameId_);
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C3");
 
   // Remove Nans (optional voxel grid filter)
   filterPointCloud(pointCloudSensorFrame);
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C4");
 
   // Specific filtering per sensor type
   filterPointCloudSensorType(pointCloudSensorFrame);
-
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C5");
   // Remove outside limits in map frame
   if (!transformPointCloud(pointCloudSensorFrame, pointCloudMapFrame, generalParameters_.mapFrameId_)) {
     return false;
   }
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C6");
+
   std::vector<PointCloudType::Ptr> pointClouds({pointCloudMapFrame, pointCloudSensorFrame});
+  // FIXME: Removing of points should be done in the sensor frame
   removePointsOutsideLimits(pointCloudMapFrame, pointClouds);
+  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C7");
 
   // Compute variances
   return computeVariances(pointCloudSensorFrame, robotPoseCovariance, variances);
@@ -123,8 +135,9 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
   try {
 
     geometry_msgs::msg::TransformStamped transformGeom;
-    // FIXME: lookupTransform sometimes gets stuck
-    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp, rclcpp::Duration::from_seconds(1.0));
+    // FIXME: lookupTransform sometimes takes long
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp,
+                                                      rclcpp::Duration::from_seconds(1.0));
     transformationSensorToMap_ = tf2::transformToEigen(transformGeom);
 
     transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
@@ -152,7 +165,7 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
     if (!firstTfAvailable_) {
       return false;
     }
-    RCLCPP_ERROR(nodeHandle_->get_logger(), "%s", ex.what());
+    // RCLCPP_ERROR(nodeHandle_->get_logger(), "%s", ex.what());
     return false;
   }
 }
@@ -174,7 +187,7 @@ bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointClou
     //RCLCPP_DEBUG_THROTTLE(nodeHandle_->get_logger(), clock, 5, "Point cloud transformed to frame %s for time stamp %f.", targetFrame.c_str(),
     //                  pointCloudTransformed->header.stamp / 1000.0);
   } catch (tf2::TransformException& ex) {
-    RCLCPP_ERROR(nodeHandle_->get_logger(), "%s", ex.what());
+    // RCLCPP_ERROR(nodeHandle_->get_logger(), "%s", ex.what());
     return false;
   }
 
@@ -208,8 +221,9 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
     extractIndicesFilter.filter(tempPointCloud);
     pointCloud->swap(tempPointCloud);
   }
-  RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "removePointsOutsideLimits() pass reduced point cloud to %i points.", (int)pointClouds[0]->size());
-   
+  // RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "removePointsOutsideLimits() pass reduced point cloud to %i points.", (int)pointClouds[0]->size());
+
+  // TODO: It would be beneficial to remove points in robot_frame, not map_frame 
   pcl::CropBox<pcl::PointXYZRGBConfidenceRatio> cropBoxFilter(true); // true-returns indices
   cropBoxFilter.setInputCloud(pointClouds[0]);
   cropBoxFilter.setNegative(true); // remove points inside the box
@@ -230,7 +244,7 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
     extractIndicesFilter.filter(tempPointCloud);
     pointCloud->swap(tempPointCloud);
   }
-  RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "removePointsOutsideLimits() box reduced point cloud to %i points.", (int)pointClouds[0]->size());
+  // RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "removePointsOutsideLimits() box reduced point cloud to %i points.", (int)pointClouds[0]->size());
 }
 
 bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud) {
