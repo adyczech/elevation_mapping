@@ -91,15 +91,12 @@ bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput
                                   const PointCloudType::Ptr pointCloudMapFrame, Eigen::VectorXf& variances, std::string sensorFrame) {
   sensorFrameId_ = sensorFrame;
   // RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C1");
 
   // Update transformation at timestamp of pointcloud   
   rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloudInput->header.stamp);
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C11");
   if (!updateTransformations(timeStamp)) {
     return false;
   }
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C2");
 
   // Transform into sensor frame.
   PointCloudType::Ptr pointCloudSensorFrame(new PointCloudType);
@@ -107,25 +104,20 @@ bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput
   //       sensorFrame is inputpointcloud frame
   *pointCloudSensorFrame = *pointCloudInput;
   // transformPointCloud(pointCloudInput, pointCloudSensorFrame, sensorFrameId_);
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C3");
 
   // Remove Nans (optional voxel grid filter)
   filterPointCloud(pointCloudSensorFrame);
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C4");
 
   // Specific filtering per sensor type
   filterPointCloudSensorType(pointCloudSensorFrame);
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C5");
   // Remove outside limits in map frame
   if (!transformPointCloud(pointCloudSensorFrame, pointCloudMapFrame, generalParameters_.mapFrameId_)) {
     return false;
   }
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C6");
 
   std::vector<PointCloudType::Ptr> pointClouds({pointCloudMapFrame, pointCloudSensorFrame});
   // FIXME: Removing of points should be done in the sensor frame
   removePointsOutsideLimits(pointCloudMapFrame, pointClouds);
-  RCLCPP_INFO(rclcpp::get_logger("sensor_processor"), "C7");
 
   // Compute variances
   return computeVariances(pointCloudSensorFrame, robotPoseCovariance, variances);
