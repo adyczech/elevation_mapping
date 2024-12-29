@@ -14,6 +14,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/crop_box.h>
 #include <pcl/pcl_base.h>
 
 // TF
@@ -48,6 +49,13 @@ bool SensorProcessorBase::readParameters() {
                     std::numeric_limits<double>::infinity());
   nodeHandle_.param("sensor_processor/ignore_points_below", parameters.ignorePointsLowerThreshold_,
                     -std::numeric_limits<double>::infinity());
+
+  nodeHandle_.param("sensor_processor/ignore_points_inside_min_x", parameters.ignorePointsInsideMinX_, 0.0);
+  nodeHandle_.param("sensor_processor/ignore_points_inside_max_x", parameters.ignorePointsInsideMaxX_, 0.0);
+  nodeHandle_.param("sensor_processor/ignore_points_inside_min_y", parameters.ignorePointsInsideMinY_, 0.0);
+  nodeHandle_.param("sensor_processor/ignore_points_inside_max_y", parameters.ignorePointsInsideMaxY_, 0.0);
+  nodeHandle_.param("sensor_processor/ignore_points_inside_min_z", parameters.ignorePointsInsideMinZ_, 0.0);
+  nodeHandle_.param("sensor_processor/ignore_points_inside_max_z", parameters.ignorePointsInsideMaxZ_, 0.0);
 
   nodeHandle_.param("sensor_processor/apply_voxelgrid_filter", parameters.applyVoxelGridFilter_, false);
   nodeHandle_.param("sensor_processor/voxelgrid_filter_size", parameters.sensorParameters_["voxelgrid_filter_size"], 0.0);
@@ -177,6 +185,28 @@ void SensorProcessorBase::removePointsOutsideLimits(PointCloudType::ConstPtr ref
   }
 
   ROS_DEBUG("removePointsOutsideLimits() reduced point cloud to %i points.", (int)pointClouds[0]->size());
+
+  // TODO: It would be beneficial to remove points in robot_frame, not map_frame 
+  pcl::CropBox<pcl::PointXYZRGBConfidenceRatio> cropBoxFilter(true); // true-returns indices
+  cropBoxFilter.setInputCloud(pointClouds[0]);
+  cropBoxFilter.setNegative(true); // remove points inside the box
+  cropBoxFilter.setMin(Eigen::Vector4f(parameters.ignorePointsInsideMinX_ + translationMapToBaseInMapFrame_.x(),
+                                       parameters.ignorePointsInsideMinY_ + translationMapToBaseInMapFrame_.y(),
+                                       parameters.ignorePointsInsideMinZ_ + translationMapToBaseInMapFrame_.z(), 1.0f));
+  cropBoxFilter.setMax(Eigen::Vector4f(parameters.ignorePointsInsideMaxX_ + translationMapToBaseInMapFrame_.x(),
+                                       parameters.ignorePointsInsideMaxY_ + translationMapToBaseInMapFrame_.y(),
+                                       parameters.ignorePointsInsideMaxZ_ + translationMapToBaseInMapFrame_.z(), 1.0f));
+  pcl::IndicesPtr insideIndecesCropBox(new std::vector<int>);
+  cropBoxFilter.filter(*insideIndecesCropBox);  
+
+  for (auto& pointCloud : pointClouds) {
+    pcl::ExtractIndices<pcl::PointXYZRGBConfidenceRatio> extractIndicesFilter;
+    extractIndicesFilter.setInputCloud(pointCloud);
+    extractIndicesFilter.setIndices(insideIndecesCropBox);
+    PointCloudType tempPointCloud;
+    extractIndicesFilter.filter(tempPointCloud);
+    pointCloud->swap(tempPointCloud);
+  }
 }
 
 bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud) {

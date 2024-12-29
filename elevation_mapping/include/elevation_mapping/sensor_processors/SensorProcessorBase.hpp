@@ -166,6 +166,19 @@ class SensorProcessorBase {
     //! Ignore points below this height in map frame.
     double ignorePointsLowerThreshold_{-std::numeric_limits<double>::infinity()};
 
+    //! Ignore points inside this box with min_x in map frame.
+    double ignorePointsInsideMinX_{0};
+    //! Ignore points inside this box with max_x in map frame.
+    double ignorePointsInsideMaxX_{0};
+    //! Ignore points inside this box with min_y in map frame.
+    double ignorePointsInsideMinY_{0};
+    //! Ignore points inside this box with max_y in map frame.
+    double ignorePointsInsideMaxY_{0};
+    //! Ignore points inside this box with min_z in map frame.
+    double ignorePointsInsideMinZ_{0};
+    //! Ignore points inside this box with max_z in map frame.
+    double ignorePointsInsideMaxZ_{0};
+
     //! Use VoxelGrid filter to cleanup pointcloud if true.
     bool applyVoxelGridFilter_{false};
 
